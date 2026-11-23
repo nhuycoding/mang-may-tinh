@@ -1,30 +1,29 @@
 {% extends "base.html" %}
-{% block title %}What I Used Today — OGK Child Transparency{% endblock %}
+{% block title %}{{ t.child_page_title }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-  <!-- Companion Transparency Banner -->
-  <div class="bg-gradient-to-r from-sky-500 to-indigo-600 rounded-2xl p-6 text-white shadow-sm">
+  <!-- Activity Summary Header -->
+  <div class="bg-gradient-to-r from-sky-600 to-indigo-600 dark:from-indigo-800 dark:to-slate-900 rounded-2xl p-6 text-white shadow-sm border border-transparent dark:border-slate-700">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <span class="inline-block text-xs font-semibold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full mb-2">
-          Child Transparency Screen
+          {{ t.child_badge }}
         </span>
-        <h1 class="text-2xl sm:text-3xl font-bold">Hi {{ child_name }}! Here is what you used today</h1>
+        <h1 class="text-2xl sm:text-3xl font-bold">{{ t.child_heading.replace('{name}', child_name) }}</h1>
         <p class="text-sm text-sky-100 mt-1">
-          OGK is a transparent helper — no hidden tracking, no full web addresses saved, and you can always see every rule change below.
+          {{ t.child_subtitle }}
         </p>
       </div>
       <div class="bg-white/15 backdrop-blur rounded-2xl p-4 text-center min-w-[160px]">
-        <div class="text-xs uppercase tracking-wider text-sky-100">Time Left Today</div>
-        <div class="text-3xl font-extrabold mt-1">{{ today.remaining_minutes }} min</div>
+        <div class="text-xs uppercase tracking-wider text-sky-100">{{ t.child_time_left }}</div>
+        <div class="text-3xl font-extrabold mt-1">{{ today.remaining_minutes }} {{ t.unit_min }}</div>
         <div class="text-xs text-sky-100 mt-0.5">
-          {{ today.used_minutes }} / {{ today.quota_minutes }} min used
+          {{ t.child_used_of.replace('{used}', today.used_minutes | string).replace('{quota}', today.quota_minutes | string) }}
         </div>
       </div>
     </div>
 
-    <!-- Remaining Time Progress Bar -->
     {% set pct = ((today.used_minutes / today.quota_minutes) * 100) if today.quota_minutes > 0 else 0 %}
     {% set pct_clamped = 100 if pct > 100 else pct %}
     <div class="mt-4">
@@ -37,110 +36,110 @@
   <!-- Today's Activity Cards -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Apps Used Today -->
-    <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900 mb-1">Apps I Used Today</h2>
-      <p class="text-xs text-slate-500 mb-4">Only app names and total minutes are counted.</p>
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">{{ t.child_apps_title }}</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ t.child_apps_desc }}</p>
       {% if today.apps_used %}
-      <ul class="divide-y divide-slate-100">
+      <ul class="divide-y divide-slate-100 dark:divide-slate-800">
         {% for app in today.apps_used %}
         <li class="py-2.5 flex items-center justify-between text-sm">
-          <span class="font-medium text-slate-800 truncate">{{ app.name }}</span>
-          <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold text-xs">
-            {{ app.minutes }} min
+          <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ app.name }}</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold text-xs">
+            {{ app.minutes }} {{ t.unit_min }}
           </span>
         </li>
         {% endfor %}
       </ul>
       {% else %}
-      <p class="text-sm text-slate-500 py-6 text-center">No app activity recorded today yet.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-6 text-center">{{ t.child_apps_empty }}</p>
       {% endif %}
     </section>
 
     <!-- Websites Visited Today (SLD only) -->
-    <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900 mb-1">Websites Visited Today</h2>
-      <p class="text-xs text-slate-500 mb-4">Only main site names (e.g. wikipedia.org) — never full page links.</p>
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">{{ t.child_sites_title }}</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ t.child_sites_desc }}</p>
       {% if today.websites_visited %}
-      <ul class="divide-y divide-slate-100">
+      <ul class="divide-y divide-slate-100 dark:divide-slate-800">
         {% for site in today.websites_visited %}
         <li class="py-2.5 flex items-center justify-between text-sm">
-          <span class="font-medium text-slate-800 truncate">{{ site.domain }}</span>
-          <span class="px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-semibold text-xs">
-            {{ site.visits }} visits
+          <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ site.domain }}</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300 font-semibold text-xs">
+            {{ site.visits }} {{ t.child_visits }}
           </span>
         </li>
         {% endfor %}
       </ul>
       {% else %}
-      <p class="text-sm text-slate-500 py-6 text-center">No website visits recorded today yet.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 py-6 text-center">{{ t.child_sites_empty }}</p>
       {% endif %}
     </section>
 
     <!-- Blocked Today -->
-    <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-      <h2 class="text-lg font-bold text-slate-900 mb-1">Items Paused / Blocked Today</h2>
-      <p class="text-xs text-slate-500 mb-4">If something was blocked by mistake, you can ask your parent to review it.</p>
+    <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+      <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">{{ t.child_blocked_title }}</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ t.child_blocked_desc }}</p>
       {% if today.blocked_items %}
-      <ul class="divide-y divide-slate-100">
+      <ul class="divide-y divide-slate-100 dark:divide-slate-800">
         {% for item in today.blocked_items %}
         <li class="py-2.5 flex items-center justify-between text-sm gap-2">
           <div class="min-w-0">
-            <div class="font-medium text-slate-800 truncate">{{ item.name }}</div>
-            <div class="text-xs text-slate-500">{{ item.kind }} &bull; {{ item.time }} UTC</div>
+            <div class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ item.name }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">{{ item.kind }} &bull; {{ item.time }} UTC</div>
           </div>
-          <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold shrink-0">
-            Blocked
+          <span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-semibold shrink-0">
+            {{ t.child_blocked_badge }}
           </span>
         </li>
         {% endfor %}
       </ul>
       {% else %}
-      <p class="text-sm text-emerald-700 bg-emerald-50 rounded-xl p-4 text-center">
-        Nothing was blocked today!
+      <p class="text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl p-4 text-center">
+        {{ t.child_blocked_empty }}
       </p>
       {% endif %}
     </section>
   </div>
 
-  <!-- Read-Only Audit Log of Parent Changes (F4 Transparency) -->
-  <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+  <!-- Read-Only Audit Log of Parent Changes (F4) -->
+  <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
       <div>
-        <h2 class="text-lg font-bold text-slate-900">Parent Rule Changes (Read-Only Audit Log)</h2>
-        <p class="text-xs text-slate-500">
-          Every time a parent updates screen-time rules, blocks an app, or sends a command, it is shown transparently here.
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">{{ t.child_audit_title }}</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          {{ t.child_audit_desc }}
         </p>
       </div>
-      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 self-start">
-        Read-Only Transparency
+      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 self-start">
+        {{ t.child_audit_readonly }}
       </span>
     </div>
 
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm text-left">
-        <thead class="bg-slate-50 text-slate-600 text-xs uppercase">
+        <thead class="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase">
           <tr>
-            <th class="px-3 py-2.5">When (UTC)</th>
-            <th class="px-3 py-2.5">Who</th>
-            <th class="px-3 py-2.5">Action</th>
-            <th class="px-3 py-2.5">Summary</th>
+            <th class="px-3 py-2.5">{{ t.child_audit_col_when }}</th>
+            <th class="px-3 py-2.5">{{ t.child_audit_col_who }}</th>
+            <th class="px-3 py-2.5">{{ t.child_audit_col_action }}</th>
+            <th class="px-3 py-2.5">{{ t.child_audit_col_summary }}</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
           {% for log in audit_logs %}
-          <tr class="hover:bg-slate-50">
-            <td class="px-3 py-2.5 whitespace-nowrap text-xs text-slate-500">{{ log.timestamp }}</td>
-            <td class="px-3 py-2.5 font-medium text-slate-800">{{ log.actor_email }}</td>
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+            <td class="px-3 py-2.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{{ log.timestamp }}</td>
+            <td class="px-3 py-2.5 font-medium text-slate-800 dark:text-slate-200">{{ log.actor_email }}</td>
             <td class="px-3 py-2.5">
-              <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono">{{ log.action }}</span>
+              <span class="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-mono">{{ log.action }}</span>
             </td>
-            <td class="px-3 py-2.5 text-xs text-slate-600 max-w-md truncate">
+            <td class="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300 max-w-md truncate">
               {{ log.new_value_json or '-' }}
             </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="4" class="px-3 py-6 text-center text-slate-500">No rule changes recorded yet.</td>
+            <td colspan="4" class="px-3 py-6 text-center text-slate-500 dark:text-slate-400">{{ t.child_audit_empty }}</td>
           </tr>
           {% endfor %}
         </tbody>

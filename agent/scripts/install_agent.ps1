@@ -38,7 +38,7 @@ sc.exe failureflag OGKAgent 1 | Out-Null
 
 Write-Host "[OGK] 5. Registering OGK Tray UI for interactive user sessions (HKLM Run)..." -ForegroundColor Cyan
 $TrayCmd = "`"$PythonExe`" -m agent.src.tray.tray_app"
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "OGKCompanionTray" -Value $TrayCmd
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "KidGateTray" -Value $TrayCmd
 
 if ($ConfigureLocalDNS) {
     Write-Host "[OGK] 6. Pointing active network adapters DNS to 127.0.0.1 (Local DNS Proxy)..." -ForegroundColor Cyan

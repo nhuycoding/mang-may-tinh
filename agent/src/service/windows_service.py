@@ -30,10 +30,9 @@ if sys.platform == "win32":
 
         class OGKAgentWindowsService(win32serviceutil.ServiceFramework):
             _svc_name_ = "OGKAgent"
-            _svc_display_name_ = "OGK Companion Child Safety Agent"
+            _svc_display_name_ = "KidGate Agent"
             _svc_description_ = (
-                "Enforces family screen-time limits, SHA-256 app rules, and local DNS safety "
-                "with full transparency via the OGK Tray UI."
+                "Enforces screen-time limits, SHA-256 application rules, and local DNS filtering."
             )
 
             def __init__(self, args):

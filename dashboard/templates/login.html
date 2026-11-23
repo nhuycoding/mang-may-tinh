@@ -1,53 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Login — OGK Family Companion{% endblock %}
+{% block title %}{{ t.login_title }}{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto mt-6 sm:mt-12">
-  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+  <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8">
     <div class="text-center mb-6">
       <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-bold text-lg flex items-center justify-center mx-auto mb-3">
-        OGK
+        KG
       </div>
-      <h1 class="text-2xl font-bold text-slate-900">Sign in to OGK</h1>
-      <p class="text-sm text-slate-500 mt-1">
-        Transparent family screen-time &amp; digital safety companion.
-      </p>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">{{ t.login_heading }}</h1>
     </div>
 
-    <div id="login-error" class="hidden mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm"></div>
+    <div id="login-error" class="hidden mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm"></div>
 
     <form id="login-form" class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1" for="email">Email</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="email">{{ t.login_email }}</label>
         <input id="email" name="email" type="email" required autocomplete="username"
                placeholder="parent@ogk.local"
-               class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+               class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1" for="password">Password</label>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="password">{{ t.login_password }}</label>
         <input id="password" name="password" type="password" required autocomplete="current-password"
                placeholder="••••••••••"
-               class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+               class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
       </div>
       <button type="submit"
               class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition">
-        Sign In
+        {{ t.login_submit }}
       </button>
     </form>
 
-    <div class="mt-6 pt-5 border-t border-slate-100 text-xs text-slate-500 space-y-1.5">
-      <div class="font-semibold text-slate-700">Lab Demo Accounts:</div>
-      <div class="flex justify-between">
-        <span>Parent:</span>
-        <code class="text-slate-700">parent@ogk.local / ParentPass123!</code>
+    <div class="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1.5">
+      <div class="font-semibold text-slate-700 dark:text-slate-300">{{ t.login_demo_accounts }}</div>
+      <div class="flex justify-between gap-2">
+        <span>{{ t.login_role_parent }}</span>
+        <code class="text-slate-700 dark:text-slate-200">parent@ogk.local / ParentPass123!</code>
       </div>
-      <div class="flex justify-between">
-        <span>Child View:</span>
-        <code class="text-slate-700">child@ogk.local / ChildPass123!</code>
+      <div class="flex justify-between gap-2">
+        <span>{{ t.login_role_child }}</span>
+        <code class="text-slate-700 dark:text-slate-200">child@ogk.local / ChildPass123!</code>
       </div>
-      <div class="flex justify-between">
-        <span>Admin:</span>
-        <code class="text-slate-700">admin@ogk.local / AdminPass123!</code>
+      <div class="flex justify-between gap-2">
+        <span>{{ t.login_role_admin }}</span>
+        <code class="text-slate-700 dark:text-slate-200">admin@ogk.local / AdminPass123!</code>
       </div>
     </div>
   </div>
@@ -72,7 +69,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     });
     const data = await resp.json();
     if (!resp.ok) {
-      errBox.textContent = data.detail || "Login failed.";
+      errBox.textContent = data.detail || tr("login_failed");
       errBox.classList.remove("hidden");
       return;
     }
@@ -82,7 +79,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
       window.location.href = "/dashboard";
     }
   } catch (err) {
-    errBox.textContent = "Network error while signing in.";
+    errBox.textContent = tr("login_network_error");
     errBox.classList.remove("hidden");
   }
 });

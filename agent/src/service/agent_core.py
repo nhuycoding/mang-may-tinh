@@ -165,7 +165,7 @@ class AgentCore:
                 duration_sec=0,
                 policy_id=self._policy_id,
             )
-        logger.critical("OGK-Agent self-terminating (Anti-Abuse rule — no stealth mode): %s", reason)
+        logger.critical("KidGate Agent self-terminating (Tray UI watchdog triggered): %s", reason)
         self._stop_event.set()
 
     def _ensure_access_token_fresh(self) -> None:

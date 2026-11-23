@@ -30,7 +30,7 @@ try {
 }
 
 Write-Host "[OGK] 3. Removing Tray UI auto-start entry..." -ForegroundColor Cyan
-Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "OGKCompanionTray" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "KidGateTray" -ErrorAction SilentlyContinue
 
 if ($PurgeData) {
     Write-Host "[OGK] 4. Removing C:\ProgramData\OGK-Agent..." -ForegroundColor Yellow

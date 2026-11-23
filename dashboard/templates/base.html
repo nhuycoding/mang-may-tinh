@@ -1,52 +1,106 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ lang | default('en') }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="csrf-token" content="{{ csrf_token | default('') }}" />
-  <title>{% block title %}OGK — Companion Child Safety{% endblock %}</title>
+  <title>{% block title %}KidGate{% endblock %}</title>
+
+  <!-- Apply saved theme BEFORE first paint to prevent white flash -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem("kidgate_theme");
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (saved === "dark" || (!saved && prefersDark)) {
+        document.documentElement.classList.add("dark");
+      }
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: "class" };
+  </script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script>
+    window.KIDGATE_I18N = {{ t | tojson }};
+  </script>
   <style>
+    html.dark { color-scheme: dark; }
     .schedule-cell { transition: background-color 0.12s ease; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors">
   <!-- Top Navigation -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
         <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center shrink-0">
-          OGK
+          KG
         </div>
         <div class="truncate">
-          <div class="font-semibold text-slate-900 leading-tight truncate">OGK Family Companion</div>
-          <div class="text-xs text-slate-500 hidden sm:block">A companion tool, not stealth spyware</div>
+          <div class="font-semibold text-slate-900 dark:text-slate-100 leading-tight truncate">KidGate</div>
         </div>
       </div>
 
-      {% if user %}
-      <div class="flex items-center gap-2 sm:gap-4">
+      <div class="flex items-center gap-1.5 sm:gap-3">
+        <!-- Language Switcher (VI | EN) -->
+        <div class="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-0.5 text-xs font-semibold" role="group" aria-label="Language">
+          <button type="button" onclick="setLanguage('vi')"
+                  class="px-2 py-1 rounded-md transition {% if lang == 'vi' %}bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{% endif %}">
+            VI
+          </button>
+          <button type="button" onclick="setLanguage('en')"
+                  class="px-2 py-1 rounded-md transition {% if lang != 'vi' %}bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200{% endif %}">
+            EN
+          </button>
+        </div>
+
+        <!-- Light / Dark Theme Toggle -->
+        <button type="button" onclick="toggleTheme()" title="{{ t.theme_toggle_title }}" aria-label="{{ t.theme_toggle_title }}"
+                class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          <!-- Sun icon (shown in dark mode) -->
+          <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <!-- Moon icon (shown in light mode) -->
+          <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        {% if user %}
         {% if user.role in ['parent', 'admin'] %}
-        <a href="/dashboard" class="text-sm font-medium text-slate-700 hover:text-indigo-600 px-2 py-1 rounded-lg">
-          Parent
+        <a href="/dashboard" class="hidden sm:inline-block text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1 rounded-lg">
+          {{ t.nav_parent }}
         </a>
         {% endif %}
-        <a href="/child" class="text-sm font-medium text-slate-700 hover:text-indigo-600 px-2 py-1 rounded-lg">
-          Child View
+        <a href="/child" class="hidden sm:inline-block text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1 rounded-lg">
+          {{ t.nav_child_view }}
         </a>
-        <div class="hidden md:flex items-center gap-2 text-xs bg-slate-100 px-3 py-1.5 rounded-full">
-          <span class="font-semibold text-slate-800">{{ user.display_name }}</span>
-          <span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase font-semibold">{{ user.role }}</span>
+        <div class="hidden lg:flex items-center gap-2 text-xs bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+          <span class="font-semibold text-slate-800 dark:text-slate-100">{{ user.display_name }}</span>
+          <span class="px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 uppercase font-semibold">{{ user.role }}</span>
         </div>
         <button onclick="logoutUser()"
-                class="text-sm font-medium text-rose-600 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">
-          Logout
+                class="text-xs sm:text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2.5 sm:px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800">
+          {{ t.nav_logout }}
         </button>
+        {% endif %}
       </div>
-      {% endif %}
     </div>
+
+    {% if user %}
+    <!-- Mobile quick-nav bar -->
+    <div class="sm:hidden border-t border-slate-100 dark:border-slate-800 px-3 py-1.5 flex items-center gap-3 text-xs font-medium">
+      {% if user.role in ['parent', 'admin'] %}
+      <a href="/dashboard" class="text-slate-700 dark:text-slate-200 hover:text-indigo-600">{{ t.nav_parent }}</a>
+      {% endif %}
+      <a href="/child" class="text-slate-700 dark:text-slate-200 hover:text-indigo-600">{{ t.nav_child_view }}</a>
+      <span class="ml-auto text-slate-500 dark:text-slate-400 truncate">{{ user.display_name }}</span>
+    </div>
+    {% endif %}
   </header>
 
   <!-- Toast notifications -->
@@ -57,11 +111,11 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-    OGK Child Computer Usage Management &bull; Transparent, Privacy-First Design (No Full URLs, No Stealth Mode)
+  <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+    KidGate
   </footer>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=2"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

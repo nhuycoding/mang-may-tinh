@@ -212,7 +212,7 @@ def test_rbac_anti_idor_and_child_transparency_dashboard(client: TestClient):
         assert c_child.get("/audit").status_code == 200
         page = c_child.get("/child")
         assert page.status_code == 200
-        assert "Here is what you used today" in page.text
+        assert "What I used today" in page.text
 
 
 def test_data_retention_90_days_and_delete_all_child_data_wipe(client: TestClient):

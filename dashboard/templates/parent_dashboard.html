@@ -1,56 +1,56 @@
 {% extends "base.html" %}
-{% block title %}Parent Dashboard — OGK Family Companion{% endblock %}
+{% block title %}{{ t.dash_title }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
   <!-- Header & Child Selector -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900">Parent Dashboard</h1>
-      <p class="text-sm text-slate-500">Manage screen time, apps, web safety, and review transparent audit logs.</p>
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">{{ t.dash_title }}</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400">{{ t.dash_subtitle }}</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
       {% if children %}
       <select id="child-selector" onchange="window.location.href='/dashboard?child_id=' + this.value"
-              class="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium">
+              class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3.5 py-2 text-sm font-medium">
         {% for c in children %}
         <option value="{{ c.id }}" {% if selected_child and c.id == selected_child.id %}selected{% endif %}>
-          {{ c.name }} (Ages {{ c.age_group }})
+          {{ c.name }} ({{ t.dash_ages }} {{ c.age_group }})
         </option>
         {% endfor %}
       </select>
       {% endif %}
       <button onclick="document.getElementById('add-child-modal').classList.remove('hidden')"
               class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
-        + Add Child
+        {{ t.dash_add_child }}
       </button>
     </div>
   </div>
 
   {% if not selected_child %}
-  <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
-    <h2 class="text-lg font-semibold text-slate-800">No child profile yet</h2>
-    <p class="text-sm text-slate-500 mt-1">Click "+ Add Child" to create your first child profile and generate a pairing code.</p>
+  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center">
+    <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100">{{ t.dash_no_child_title }}</h2>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">{{ t.dash_no_child_desc }}</p>
   </div>
   {% else %}
 
   <!-- Mobile-friendly Section Tabs -->
-  <div class="flex overflow-x-auto gap-2 pb-1 border-b border-slate-200" role="tablist">
+  <div class="flex overflow-x-auto gap-2 pb-1 border-b border-slate-200 dark:border-slate-800" role="tablist">
     <button onclick="switchTab('overview')" id="tab-btn-overview"
             class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl bg-indigo-600 text-white whitespace-nowrap">
-      Overview &amp; Reports
+      {{ t.tab_overview }}
     </button>
     <button onclick="switchTab('devices')" id="tab-btn-devices"
-            class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-600 hover:bg-slate-100 whitespace-nowrap">
-      Devices &amp; Commands ({{ devices | length }})
+            class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap">
+      {{ t.tab_devices }} ({{ devices | length }})
     </button>
     <button onclick="switchTab('policy')" id="tab-btn-policy"
-            class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-600 hover:bg-slate-100 whitespace-nowrap">
-      Policy &amp; 7&times;48 Schedule (v{{ policy.policy_version }})
+            class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap">
+      {{ t.tab_policy }} (v{{ policy.policy_version }})
     </button>
     <button onclick="switchTab('audit')" id="tab-btn-audit"
-            class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-600 hover:bg-slate-100 whitespace-nowrap">
-      Audit Log &amp; Privacy
+            class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap">
+      {{ t.tab_audit }}
     </button>
   </div>
 
@@ -60,50 +60,50 @@
   <div id="tab-overview" class="tab-panel space-y-6">
     <!-- KPI Row -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-        <div class="text-xs font-medium text-slate-500">Used Today</div>
-        <div class="text-2xl font-bold text-slate-900 mt-1">
-          {{ (summary.used_today_sec / 60) | round(1) }} <span class="text-sm font-normal text-slate-500">min</span>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t.kpi_used_today }}</div>
+        <div class="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+          {{ (summary.used_today_sec / 60) | round(1) }} <span class="text-sm font-normal text-slate-500 dark:text-slate-400">{{ t.unit_min }}</span>
         </div>
-        <div class="text-xs text-slate-500 mt-1">Quota: {{ (summary.daily_quota_sec / 60) | round(0) | int }} min</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ t.kpi_quota }}: {{ (summary.daily_quota_sec / 60) | round(0) | int }} {{ t.unit_min }}</div>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-        <div class="text-xs font-medium text-slate-500">Remaining Today</div>
-        <div class="text-2xl font-bold text-emerald-600 mt-1">
-          {{ (summary.remaining_today_sec / 60) | round(1) }} <span class="text-sm font-normal text-slate-500">min</span>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t.kpi_remaining_today }}</div>
+        <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+          {{ (summary.remaining_today_sec / 60) | round(1) }} <span class="text-sm font-normal text-slate-500 dark:text-slate-400">{{ t.unit_min }}</span>
         </div>
-        <div class="text-xs text-slate-500 mt-1">Policy v{{ policy.policy_version }}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ t.kpi_policy }} v{{ policy.policy_version }}</div>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-        <div class="text-xs font-medium text-slate-500">Blocked (7d)</div>
-        <div class="text-2xl font-bold text-amber-600 mt-1">{{ summary.block_counts.total }}</div>
-        <div class="text-xs text-slate-500 mt-1">
-          {{ summary.block_counts.blocked_apps }} apps &bull; {{ summary.block_counts.blocked_domains }} sites
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t.kpi_blocked_7d }}</div>
+        <div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{{ summary.block_counts.total }}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          {{ summary.block_counts.blocked_apps }} {{ t.kpi_apps }} &bull; {{ summary.block_counts.blocked_domains }} {{ t.kpi_sites }}
         </div>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-        <div class="text-xs font-medium text-slate-500">Extension Requests</div>
-        <div class="text-2xl font-bold text-indigo-600 mt-1">{{ summary.pending_extension_requests }}</div>
-        <div class="text-xs text-slate-500 mt-1">Pending review</div>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t.kpi_extension_requests }}</div>
+        <div class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{{ summary.pending_extension_requests }}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ t.kpi_pending_review }}</div>
       </div>
     </div>
 
     <!-- Chart + Extension Requests Queue -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h2 class="text-base font-bold text-slate-900 mb-3">7-Day Screen-Time Usage (Minutes)</h2>
+      <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+        <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-3">{{ t.chart_7day_title }}</h2>
         <div class="h-64">
           <canvas id="usageChart"></canvas>
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-base font-bold text-slate-900">Time-Extension Queue</h2>
+          <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">{{ t.ext_queue_title }}</h2>
           <button hx-get="/dashboard/partials/extensions?child_id={{ selected_child.id }}"
                   hx-target="#extensions-container"
-                  class="text-xs text-indigo-600 hover:underline font-medium">
-            Refresh
+                  class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+            {{ t.ext_refresh }}
           </button>
         </div>
         <div id="extensions-container">
@@ -114,55 +114,55 @@
 
     <!-- Top 10 Apps & Top 10 Domains -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h2 class="text-base font-bold text-slate-900 mb-3">Top 10 Applications (7d)</h2>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+        <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-3">{{ t.top_apps_title }}</h2>
         {% if summary.top_apps %}
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
-            <thead class="text-xs text-slate-500 uppercase bg-slate-50">
+            <thead class="text-xs text-slate-500 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800">
               <tr>
-                <th class="px-3 py-2 text-left">Application</th>
-                <th class="px-3 py-2 text-right">Usage</th>
+                <th class="px-3 py-2 text-left">{{ t.top_apps_col_app }}</th>
+                <th class="px-3 py-2 text-right">{{ t.top_apps_col_usage }}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
               {% for item in summary.top_apps %}
               <tr>
-                <td class="px-3 py-2 font-medium text-slate-800">{{ item.name }}</td>
-                <td class="px-3 py-2 text-right text-slate-600">{{ item.minutes }} min</td>
+                <td class="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{{ item.name }}</td>
+                <td class="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{{ item.minutes }} {{ t.unit_min }}</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
         {% else %}
-        <p class="text-sm text-slate-500 py-6 text-center">No application usage recorded yet.</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400 py-6 text-center">{{ t.top_apps_empty }}</p>
         {% endif %}
       </div>
 
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h2 class="text-base font-bold text-slate-900 mb-3">Top 10 Domains (SLD Only, 7d)</h2>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+        <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-3">{{ t.top_domains_title }}</h2>
         {% if summary.top_domains %}
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
-            <thead class="text-xs text-slate-500 uppercase bg-slate-50">
+            <thead class="text-xs text-slate-500 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800">
               <tr>
-                <th class="px-3 py-2 text-left">Domain</th>
-                <th class="px-3 py-2 text-right">DNS Queries</th>
+                <th class="px-3 py-2 text-left">{{ t.top_domains_col_domain }}</th>
+                <th class="px-3 py-2 text-right">{{ t.top_domains_col_queries }}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
               {% for item in summary.top_domains %}
               <tr>
-                <td class="px-3 py-2 font-medium text-slate-800">{{ item.domain }}</td>
-                <td class="px-3 py-2 text-right text-slate-600">{{ item.queries }}</td>
+                <td class="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{{ item.domain }}</td>
+                <td class="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{{ item.queries }}</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
         {% else %}
-        <p class="text-sm text-slate-500 py-6 text-center">No domain queries recorded yet.</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400 py-6 text-center">{{ t.top_domains_empty }}</p>
         {% endif %}
       </div>
     </div>
@@ -173,16 +173,16 @@
   <!-- =================================================================== -->
   <div id="tab-devices" class="tab-panel hidden space-y-6">
     <!-- Pairing Code Generator -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h2 class="text-base font-bold text-slate-900">Enroll a Windows 10/11 Device</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Generate a single-use 8-character pairing code valid for 10 minutes.</p>
+        <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">{{ t.enroll_title }}</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ t.enroll_desc }}</p>
       </div>
-      <div class="flex items-center gap-3">
-        <div id="pairing-code-display" class="hidden px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200 font-mono text-lg font-bold tracking-widest text-indigo-700"></div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div id="pairing-code-display" class="hidden px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-700 font-mono text-lg font-bold tracking-widest text-indigo-700 dark:text-indigo-300"></div>
         <button onclick="generatePairingCode({{ selected_child.id }})"
                 class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shrink-0">
-          Generate Pairing Code
+          {{ t.enroll_generate }}
         </button>
       </div>
     </div>
@@ -190,53 +190,53 @@
     <!-- Enrolled Devices List -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       {% for dev in devices %}
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
         <div class="flex items-start justify-between gap-2">
           <div>
-            <h3 class="font-bold text-slate-900">{{ dev.device_name }}</h3>
-            <p class="text-xs text-slate-500">{{ dev.os_version or 'Windows 10/11' }} &bull; ID: {{ dev.id[:8] }}...</p>
+            <h3 class="font-bold text-slate-900 dark:text-slate-100">{{ dev.device_name }}</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ dev.os_version or 'Windows 10/11' }} &bull; ID: {{ dev.id[:8] }}...</p>
           </div>
           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase
-            {% if dev.status == 'online' %}bg-emerald-100 text-emerald-800
-            {% elif dev.status == 'locked' %}bg-amber-100 text-amber-800
-            {% elif dev.status == 'tampered' %}bg-rose-100 text-rose-800
-            {% elif dev.status == 'revoked' %}bg-slate-200 text-slate-600
-            {% else %}bg-slate-100 text-slate-700{% endif %}">
-            {{ dev.status }}
+            {% if dev.status == 'online' %}bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300
+            {% elif dev.status == 'locked' %}bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300
+            {% elif dev.status == 'tampered' %}bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300
+            {% elif dev.status == 'revoked' %}bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400
+            {% else %}bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300{% endif %}">
+            {{ t['status_' + dev.status] | default(dev.status) }}
           </span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 rounded-xl p-3">
-          <div>Policy: <span class="font-semibold text-slate-800">v{{ dev.current_policy_version }}</span></div>
-          <div>Used Today: <span class="font-semibold text-slate-800">{{ (dev.used_quota_sec_today / 60) | round(1) }}m</span></div>
-          <div>Clock Skew: <span class="font-semibold text-slate-800">{{ dev.last_clock_skew_sec }}s</span></div>
-          <div>Heartbeat: <span class="font-semibold text-slate-800">{{ dev.last_heartbeat_at.strftime('%H:%M UTC') if dev.last_heartbeat_at else 'Never' }}</span></div>
+        <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/70 rounded-xl p-3">
+          <div>{{ t.dev_policy }}: <span class="font-semibold text-slate-800 dark:text-slate-100">v{{ dev.current_policy_version }}</span></div>
+          <div>{{ t.dev_used_today }}: <span class="font-semibold text-slate-800 dark:text-slate-100">{{ (dev.used_quota_sec_today / 60) | round(1) }}m</span></div>
+          <div>{{ t.dev_clock_skew }}: <span class="font-semibold text-slate-800 dark:text-slate-100">{{ dev.last_clock_skew_sec }}s</span></div>
+          <div>{{ t.dev_heartbeat }}: <span class="font-semibold text-slate-800 dark:text-slate-100">{{ dev.last_heartbeat_at.strftime('%H:%M UTC') if dev.last_heartbeat_at else t.dev_never }}</span></div>
         </div>
 
         {% if not dev.is_revoked %}
         <div class="flex flex-wrap gap-2">
           <button onclick="sendUrgentCommand('{{ dev.id }}', 'lock_now')"
                   class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold">
-            Lock Now
+            {{ t.dev_lock_now }}
           </button>
           <button onclick="sendUrgentCommand('{{ dev.id }}', 'unlock')"
                   class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
-            Unlock
+            {{ t.dev_unlock }}
           </button>
           <button onclick="sendUrgentCommand('{{ dev.id }}', 'add_15_mins')"
                   class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">
-            +15 Mins
+            {{ t.dev_add_15 }}
           </button>
           <button onclick="revokeDevice('{{ dev.id }}')"
-                  class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold ml-auto">
-            Revoke Device
+                  class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold ml-auto">
+            {{ t.dev_revoke }}
           </button>
         </div>
         {% endif %}
       </div>
       {% else %}
-      <div class="md:col-span-2 bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-500">
-        No devices enrolled for {{ selected_child.name }} yet. Generate a pairing code above to enroll an OGK-Agent.
+      <div class="md:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        {{ t.dev_empty.replace('{name}', selected_child.name) }}
       </div>
       {% endfor %}
     </div>
@@ -248,64 +248,64 @@
   <div id="tab-policy" class="tab-panel hidden space-y-6">
     <form id="policy-form" class="space-y-6">
       <!-- Quotas & Offline Behavior -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h2 class="text-base font-bold text-slate-900 mb-4">Screen-Time Quotas &amp; Offline Rules (F1)</h2>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+        <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-4">{{ t.pol_quotas_title }}</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Weekday Quota (minutes)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_weekday_quota }}</label>
             <input type="number" id="weekday_quota_min" min="1" max="1440"
                    value="{{ (policy_payload.weekday_quota_sec / 60) | int }}"
-                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                   class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Weekend Quota (minutes)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_weekend_quota }}</label>
             <input type="number" id="weekend_quota_min" min="1" max="1440"
                    value="{{ (policy_payload.weekend_quota_sec / 60) | int }}"
-                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                   class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Grace Period Before Lock (sec)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_grace_period }}</label>
             <input type="number" id="grace_period_sec" min="10" max="600"
                    value="{{ policy_payload.grace_period_sec }}"
-                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                   class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Idle Pause Timeout (sec)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_idle_timeout }}</label>
             <input type="number" id="idle_timeout_sec" min="60" max="3600"
                    value="{{ policy_payload.idle_timeout_sec }}"
-                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                   class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Offline Policy Expiry (days)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_offline_days }}</label>
             <input type="number" id="offline_expiry_days" min="1" max="30"
                    value="{{ policy_payload.offline_expiry_days }}"
-                   class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                   class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">After Offline Expiry</label>
-            <select id="offline_expiry_mode" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
-              <option value="fail_closed" {% if policy_payload.offline_expiry_mode == 'fail_closed' %}selected{% endif %}>Fail-Closed (Lock until online)</option>
-              <option value="fail_open" {% if policy_payload.offline_expiry_mode == 'fail_open' %}selected{% endif %}>Fail-Open (Allow until online)</option>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_offline_mode }}</label>
+            <select id="offline_expiry_mode" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm">
+              <option value="fail_closed" {% if policy_payload.offline_expiry_mode == 'fail_closed' %}selected{% endif %}>{{ t.pol_fail_closed }}</option>
+              <option value="fail_open" {% if policy_payload.offline_expiry_mode == 'fail_open' %}selected{% endif %}>{{ t.pol_fail_open }}</option>
             </select>
           </div>
         </div>
       </div>
 
       <!-- 7x48 Weekly Schedule Matrix -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div>
-            <h2 class="text-base font-bold text-slate-900">Weekly Schedule (7&times;48 Matrix, 30-min Slots)</h2>
-            <p class="text-xs text-slate-500">Green = Allowed, Gray = Blocked. Tap or click slots to toggle.</p>
+            <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">{{ t.pol_schedule_title }}</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t.pol_schedule_desc }}</p>
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <button type="button" onclick="applySchedulePreset('default')"
-                    class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700">
-              Ages 6-11 (07:00-21:00)
+                    class="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200">
+              {{ t.pol_preset_default }}
             </button>
             <button type="button" onclick="applySchedulePreset('all')"
-                    class="px-3 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-xs font-semibold text-emerald-800">
-              Allow All
+                    class="px-3 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-900 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+              {{ t.pol_preset_all }}
             </button>
           </div>
         </div>
@@ -315,24 +315,24 @@
       </div>
 
       <!-- Website Filtering & SafeSearch (F2) -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <div class="flex items-center justify-between">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 class="text-base font-bold text-slate-900">Website Filtering &amp; SafeSearch (F2)</h2>
-            <p class="text-xs text-slate-500">Enforced via Local DNS Proxy (127.0.0.1:53) across 6 safe categories.</p>
+            <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">{{ t.pol_web_title }}</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t.pol_web_desc }}</p>
           </div>
-          <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-800 cursor-pointer">
+          <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-200 cursor-pointer">
             <input type="checkbox" id="safesearch_enabled" class="w-4 h-4 rounded text-indigo-600"
                    {% if policy_payload.safesearch_enabled %}checked{% endif %} />
-            Enforce SafeSearch
+            {{ t.pol_safesearch }}
           </label>
         </div>
 
         <div>
-          <div class="text-xs font-semibold text-slate-700 mb-2">Blocked Categories:</div>
+          <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">{{ t.pol_blocked_categories }}</div>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {% for cat in ['education', 'entertainment', 'social_media', 'games', 'inappropriate', 'uncategorized'] %}
-            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium cursor-pointer">
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer">
               <input type="checkbox" name="blocked_categories" value="{{ cat }}"
                      {% if cat in policy_payload.blocked_categories %}checked{% endif %}
                      class="rounded text-indigo-600" />
@@ -344,28 +344,28 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Custom Blocked Domains (one per line)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_custom_blocked }}</label>
             <textarea id="blocked_domains" rows="3" placeholder="example-block.test"
-                      class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">{{ policy_payload.blocked_domains | join('\n') }}</textarea>
+                      class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm font-mono">{{ policy_payload.blocked_domains | join('\n') }}</textarea>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Custom Allowed Domains (override, one per line)</label>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.pol_custom_allowed }}</label>
             <textarea id="allowed_domains" rows="3" placeholder="khanacademy.org"
-                      class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono">{{ policy_payload.allowed_domains | join('\n') }}</textarea>
+                      class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm font-mono">{{ policy_payload.allowed_domains | join('\n') }}</textarea>
           </div>
         </div>
       </div>
 
       <!-- Application Rules (Name + SHA-256) -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <div class="flex items-center justify-between">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 class="text-base font-bold text-slate-900">Application Control (Process Name + SHA-256 Hash)</h2>
-            <p class="text-xs text-slate-500">Matching by SHA-256 detects renamed executables (e.g., notepad.exe renamed to game.exe).</p>
+            <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">{{ t.pol_app_title }}</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t.pol_app_desc }}</p>
           </div>
           <button type="button" onclick="addAppRuleRow()"
-                  class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700">
-            + Add App Rule
+                  class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 self-start">
+            {{ t.pol_add_app_rule }}
           </button>
         </div>
         <div id="app-rules-list" class="space-y-2"></div>
@@ -374,7 +374,7 @@
       <div class="flex justify-end">
         <button type="submit"
                 class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm">
-          Save &amp; Sign Policy (HMAC-SHA256)
+          {{ t.pol_save }}
         </button>
       </div>
     </form>
@@ -384,32 +384,32 @@
   <!-- TAB 4: AUDIT LOG & PRIVACY WIPE                                     -->
   <!-- =================================================================== -->
   <div id="tab-audit" class="tab-panel hidden space-y-6">
-    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-      <h2 class="text-base font-bold text-slate-900 mb-1">Transparent Audit Log (F4)</h2>
-      <p class="text-xs text-slate-500 mb-4">Visible to both parents and the child. Records actor, timestamp, source IP, old value, and new value.</p>
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+      <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">{{ t.audit_title }}</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ t.audit_desc }}</p>
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm text-left">
-          <thead class="bg-slate-50 text-slate-600 text-xs uppercase">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase">
             <tr>
-              <th class="px-3 py-2">Timestamp (UTC)</th>
-              <th class="px-3 py-2">Actor</th>
-              <th class="px-3 py-2">Source IP</th>
-              <th class="px-3 py-2">Action</th>
-              <th class="px-3 py-2">New Value</th>
+              <th class="px-3 py-2">{{ t.audit_col_time }}</th>
+              <th class="px-3 py-2">{{ t.audit_col_actor }}</th>
+              <th class="px-3 py-2">{{ t.audit_col_ip }}</th>
+              <th class="px-3 py-2">{{ t.audit_col_action }}</th>
+              <th class="px-3 py-2">{{ t.audit_col_new }}</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
             {% for log in audit_logs %}
-            <tr class="hover:bg-slate-50">
-              <td class="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-              <td class="px-3 py-2 font-medium text-slate-800">{{ log.actor_email }}</td>
-              <td class="px-3 py-2 text-xs font-mono text-slate-600">{{ log.source_ip }}</td>
-              <td class="px-3 py-2"><span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono">{{ log.action }}</span></td>
-              <td class="px-3 py-2 text-xs text-slate-600 max-w-md truncate">{{ log.new_value_json or '-' }}</td>
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+              <td class="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+              <td class="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{{ log.actor_email }}</td>
+              <td class="px-3 py-2 text-xs font-mono text-slate-600 dark:text-slate-300">{{ log.source_ip }}</td>
+              <td class="px-3 py-2"><span class="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-mono">{{ log.action }}</span></td>
+              <td class="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 max-w-md truncate">{{ log.new_value_json or '-' }}</td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="5" class="px-3 py-6 text-center text-slate-500">No audit records yet.</td>
+              <td colspan="5" class="px-3 py-6 text-center text-slate-500 dark:text-slate-400">{{ t.audit_empty }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -418,17 +418,16 @@
     </div>
 
     <!-- Danger Zone: Delete all my child's data (F3) -->
-    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h3 class="text-base font-bold text-rose-900">Delete All My Child's Data (F3 Privacy Right)</h3>
-        <p class="text-xs text-rose-700 mt-1">
-          Immediately deletes all activity logs &amp; extension requests for <strong>{{ selected_child.name }}</strong> on the Server
-          and pushes <code>wipe_local_data</code> to all enrolled Windows Agents.
+        <h3 class="text-base font-bold text-rose-900 dark:text-rose-200">{{ t.wipe_title }}</h3>
+        <p class="text-xs text-rose-700 dark:text-rose-300 mt-1">
+          {{ t.wipe_desc.replace('{name}', selected_child.name) }}
         </p>
       </div>
       <button onclick="wipeChildData({{ selected_child.id }}, '{{ selected_child.name }}')"
               class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shrink-0">
-        Delete All My Child's Data
+        {{ t.wipe_btn }}
       </button>
     </div>
   </div>
@@ -436,36 +435,36 @@
 </div>
 
 <!-- Add Child Modal -->
-<div id="add-child-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
-    <h2 class="text-lg font-bold text-slate-900 mb-4">Add Child Profile</h2>
+<div id="add-child-modal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl">
+    <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">{{ t.modal_add_child_title }}</h2>
     <form id="add-child-form" class="space-y-3">
       <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Child Name (Encrypted at Rest)</label>
-        <input id="new_child_name" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="e.g. Be Minh" />
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.modal_child_name }}</label>
+        <input id="new_child_name" required class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" placeholder="e.g. Be Minh" />
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Age Group</label>
-        <select id="new_child_age" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
-          <option value="6-11">6-11 (Default Safe Policy)</option>
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.modal_child_age }}</label>
+        <select id="new_child_age" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm">
+          <option value="6-11">6-11</option>
           <option value="12-15">12-15</option>
         </select>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Optional Child-View Email</label>
-        <input id="new_child_email" type="email" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="minh@ogk.local" />
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.modal_child_email }}</label>
+        <input id="new_child_email" type="email" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" placeholder="minh@ogk.local" />
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-700 mb-1">Optional Child-View Password (min 10 chars)</label>
-        <input id="new_child_pass" type="password" minlength="10" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{{ t.modal_child_pass }}</label>
+        <input id="new_child_pass" type="password" minlength="10" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm" />
       </div>
       <div class="flex justify-end gap-2 pt-3">
         <button type="button" onclick="document.getElementById('add-child-modal').classList.add('hidden')"
-                class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium text-slate-700">
-          Cancel
+                class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300">
+          {{ t.modal_cancel }}
         </button>
-        <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold">
-          Create Child
+        <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+          {{ t.modal_create }}
         </button>
       </div>
     </form>
@@ -479,32 +478,43 @@ const SELECTED_CHILD_ID = {{ selected_child.id if selected_child else 'null' }};
 const CHART_DATA = {{ summary.daily_chart | tojson if summary else '[]' }};
 let SCHEDULE_MATRIX = {{ policy_payload.weekly_schedule | tojson if policy_payload else '[]' }};
 let APP_RULES = {{ policy_payload.app_rules | tojson if policy_payload else '[]' }};
+let usageChartInstance = null;
 
 function switchTab(name) {
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
   document.querySelectorAll(".tab-btn").forEach(b => {
     b.classList.remove("bg-indigo-600", "text-white");
-    b.classList.add("text-slate-600");
+    b.classList.add("text-slate-600", "dark:text-slate-300");
   });
   const panel = document.getElementById("tab-" + name);
   const btn = document.getElementById("tab-btn-" + name);
   if (panel) panel.classList.remove("hidden");
   if (btn) {
     btn.classList.add("bg-indigo-600", "text-white");
-    btn.classList.remove("text-slate-600");
+    btn.classList.remove("text-slate-600", "dark:text-slate-300");
   }
 }
 
-// Render 7-day usage Chart.js bar chart
+function getChartThemeColors() {
+  const dark = document.documentElement.classList.contains("dark");
+  return {
+    tick: dark ? "#cbd5e1" : "#475569",
+    grid: dark ? "rgba(148, 163, 184, 0.15)" : "rgba(148, 163, 184, 0.25)",
+    bar: dark ? "#6366f1" : "#4f46e5",
+  };
+}
+
+// Render 7-day usage Chart.js bar chart with theme support
 if (document.getElementById("usageChart") && CHART_DATA.length > 0) {
-  new Chart(document.getElementById("usageChart"), {
+  const c = getChartThemeColors();
+  usageChartInstance = new Chart(document.getElementById("usageChart"), {
     type: "bar",
     data: {
       labels: CHART_DATA.map(d => d.date),
       datasets: [{
-        label: "Minutes Used",
+        label: tr("chart_minutes_used"),
         data: CHART_DATA.map(d => d.minutes),
-        backgroundColor: "#4f46e5",
+        backgroundColor: c.bar,
         borderRadius: 6,
       }]
     },
@@ -512,26 +522,45 @@ if (document.getElementById("usageChart") && CHART_DATA.length > 0) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } }
+      scales: {
+        x: { ticks: { color: c.tick }, grid: { color: c.grid } },
+        y: { beginAtZero: true, ticks: { color: c.tick }, grid: { color: c.grid } }
+      }
     }
+  });
+
+  window.addEventListener("kidgate:theme-changed", () => {
+    if (!usageChartInstance) return;
+    const nc = getChartThemeColors();
+    usageChartInstance.data.datasets[0].backgroundColor = nc.bar;
+    usageChartInstance.options.scales.x.ticks.color = nc.tick;
+    usageChartInstance.options.scales.x.grid.color = nc.grid;
+    usageChartInstance.options.scales.y.ticks.color = nc.tick;
+    usageChartInstance.options.scales.y.grid.color = nc.grid;
+    usageChartInstance.update();
   });
 }
 
 // Render interactive 7x48 schedule grid
-const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_NAMES = (window.KIDGATE_I18N && Array.isArray(window.KIDGATE_I18N.days))
+  ? window.KIDGATE_I18N.days
+  : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 function renderScheduleGrid() {
   const container = document.getElementById("schedule-grid");
   if (!container || SCHEDULE_MATRIX.length !== 7) return;
   let html = '<div class="grid grid-cols-[44px_repeat(48,minmax(12px,1fr))] gap-[2px] items-center text-[10px]">';
   html += '<div></div>';
   for (let h = 0; h < 24; h++) {
-    html += `<div class="col-span-2 text-center text-slate-400">${String(h).padStart(2, "0")}</div>`;
+    html += `<div class="col-span-2 text-center text-slate-400 dark:text-slate-500">${String(h).padStart(2, "0")}</div>`;
   }
   for (let d = 0; d < 7; d++) {
-    html += `<div class="font-semibold text-slate-600 pr-1">${DAY_NAMES[d]}</div>`;
+    html += `<div class="font-semibold text-slate-600 dark:text-slate-300 pr-1">${DAY_NAMES[d]}</div>`;
     for (let s = 0; s < 48; s++) {
       const on = SCHEDULE_MATRIX[d][s] === 1;
-      const cls = on ? "bg-emerald-500 hover:bg-emerald-600" : "bg-slate-200 hover:bg-slate-300";
+      const cls = on
+        ? "bg-emerald-500 hover:bg-emerald-600"
+        : "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600";
       const hh = String(Math.floor(s / 2)).padStart(2, "0");
       const mm = s % 2 === 0 ? "00" : "30";
       html += `<button type="button" title="${DAY_NAMES[d]} ${hh}:${mm}"
@@ -560,24 +589,24 @@ function renderAppRules() {
   const list = document.getElementById("app-rules-list");
   if (!list) return;
   if (APP_RULES.length === 0) {
-    list.innerHTML = '<p class="text-xs text-slate-500">No app rules configured yet.</p>';
+    list.innerHTML = `<p class="text-xs text-slate-500 dark:text-slate-400">${tr("pol_no_app_rules")}</p>`;
     return;
   }
   list.innerHTML = APP_RULES.map((r, idx) => `
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 items-center">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 items-center">
       <input value="${r.name || ''}" onchange="APP_RULES[${idx}].name=this.value" placeholder="notepad.exe"
-             class="md:col-span-3 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs" />
-      <input value="${r.sha256 || ''}" onchange="APP_RULES[${idx}].sha256=this.value" placeholder="Optional 64-char SHA-256 hash"
-             class="md:col-span-4 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-mono" />
+             class="md:col-span-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2.5 py-1.5 text-xs" />
+      <input value="${r.sha256 || ''}" onchange="APP_RULES[${idx}].sha256=this.value" placeholder="${tr('pol_rule_sha_ph')}"
+             class="md:col-span-4 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2.5 py-1.5 text-xs font-mono" />
       <select onchange="APP_RULES[${idx}].action=this.value"
-              class="md:col-span-2 rounded-lg border border-slate-300 px-2 py-1.5 text-xs bg-white">
-        <option value="block" ${r.action === 'block' ? 'selected' : ''}>Block</option>
-        <option value="allow" ${r.action === 'allow' ? 'selected' : ''}>Allow</option>
+              class="md:col-span-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2.5 py-1.5 text-xs">
+        <option value="block" ${r.action === 'block' ? 'selected' : ''}>${tr('pol_rule_block')}</option>
+        <option value="allow" ${r.action === 'allow' ? 'selected' : ''}>${tr('pol_rule_allow')}</option>
       </select>
-      <input value="${r.reason || ''}" onchange="APP_RULES[${idx}].reason=this.value" placeholder="Reason shown to child"
-             class="md:col-span-2 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs" />
+      <input value="${r.reason || ''}" onchange="APP_RULES[${idx}].reason=this.value" placeholder="${tr('pol_rule_reason_ph')}"
+             class="md:col-span-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2.5 py-1.5 text-xs" />
       <button type="button" onclick="APP_RULES.splice(${idx}, 1); renderAppRules();"
-              class="md:col-span-1 text-xs font-semibold text-rose-600 hover:underline">Remove</button>
+              class="md:col-span-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">${tr('pol_rule_remove')}</button>
     </div>
   `).join("");
 }
@@ -621,7 +650,7 @@ if (policyForm) {
         method: "PUT",
         body: JSON.stringify(payload),
       });
-      showToast(`Policy updated & HMAC-signed (v${res.policy_version})`, "success");
+      showToast(tr("toast_policy_saved", { version: res.policy_version }), "success");
       setTimeout(() => window.location.reload(), 900);
     } catch (err) {
       showToast(err.message, "error");
@@ -638,7 +667,7 @@ async function generatePairingCode(childId) {
     const box = document.getElementById("pairing-code-display");
     box.textContent = res.pairing_code;
     box.classList.remove("hidden");
-    showToast("Pairing code generated (valid 10 minutes).", "success");
+    showToast(tr("toast_pairing_ok"), "success");
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -650,17 +679,17 @@ async function sendUrgentCommand(deviceId, commandType) {
       method: "POST",
       body: JSON.stringify({ device_id: deviceId, command_type: commandType }),
     });
-    showToast(`Command '${commandType}' sent to device.`, "success");
+    showToast(tr("toast_cmd_sent", { cmd: commandType }), "success");
   } catch (err) {
     showToast(err.message, "error");
   }
 }
 
 async function revokeDevice(deviceId) {
-  if (!confirm("Revoke this device and invalidate all its tokens?")) return;
+  if (!confirm(tr("confirm_revoke"))) return;
   try {
     await apiFetch(`/enroll/devices/${deviceId}`, { method: "DELETE" });
-    showToast("Device revoked.", "warning");
+    showToast(tr("toast_dev_revoked"), "warning");
     setTimeout(() => window.location.reload(), 800);
   } catch (err) {
     showToast(err.message, "error");
@@ -673,7 +702,7 @@ async function decideExtension(reqId, decision) {
       method: "POST",
       body: JSON.stringify({ decision }),
     });
-    showToast(`Extension request ${decision}.`, "success");
+    showToast(tr("toast_ext_decided", { decision }), "success");
     htmx.ajax("GET", `/dashboard/partials/extensions?child_id=${SELECTED_CHILD_ID}`, "#extensions-container");
   } catch (err) {
     showToast(err.message, "error");
@@ -681,10 +710,10 @@ async function decideExtension(reqId, decision) {
 }
 
 async function wipeChildData(childId, childName) {
-  if (!confirm(`Permanently delete ALL activity data for "${childName}" on Server and wipe local Agent caches?`)) return;
+  if (!confirm(tr("confirm_wipe", { name: childName }))) return;
   try {
     const res = await apiFetch(`/auth/children/${childId}/data`, { method: "DELETE" });
-    showToast(`Deleted ${res.deleted_events} events & queued wipe on ${res.devices_queued} device(s).`, "warning");
+    showToast(tr("toast_wiped", { events: res.deleted_events, devices: res.devices_queued }), "warning");
     setTimeout(() => window.location.reload(), 1100);
   } catch (err) {
     showToast(err.message, "error");
@@ -708,7 +737,7 @@ if (addChildForm) {
     }
     try {
       const child = await apiFetch("/auth/children", { method: "POST", body: JSON.stringify(body) });
-      showToast(`Created profile for ${child.name}`, "success");
+      showToast(tr("toast_child_created", { name: child.name }), "success");
       window.location.href = `/dashboard?child_id=${child.id}`;
     } catch (err) {
       showToast(err.message, "error");

@@ -37,8 +37,8 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="OGK-Server",
-    description="Child Computer Usage Management Application — 'A companion tool, not stealth spyware.'",
+    title="KidGate Server",
+    description="Screen-time management, application control, and DNS filtering server.",
     version="1.0.0",
     lifespan=lifespan,
 )

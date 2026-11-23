@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from server.app.api.reports import get_child_report_summary, get_today_child_transparency
 from server.app.crypto import decrypt_field, hash_token
 from server.app.database import get_db
+from server.app.i18n import load_translations, resolve_language
 from server.app.models import AuditLog, Child, Device, Policy, TimeExtensionRequest, User, WebSession, utcnow
 from server.app.security import SESSION_COOKIE_NAME, _as_utc
 from server.app.services.policy_service import build_policy_payload, create_default_policy
@@ -65,7 +66,12 @@ def login_page(
     if sess is not None:
         user, _ws = sess
         return RedirectResponse(url="/child" if user.role == "child-view" else "/dashboard", status_code=302)
-    return templates.TemplateResponse(request, "login.html", {"user": None, "csrf_token": ""})
+    lang = resolve_language(request)
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"user": None, "csrf_token": "", "lang": lang, "t": load_translations(lang)},
+    )
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -99,9 +105,12 @@ def parent_dashboard_page(
         else:
             selected_child_obj = raw_children[0]
 
+    lang = resolve_language(request)
     context: dict = {
         "user": user,
         "csrf_token": ws.csrf_token,
+        "lang": lang,
+        "t": load_translations(lang),
         "children": children_view,
         "selected_child": None,
         "summary": None,
@@ -187,7 +196,12 @@ def extensions_partial(
         .scalars()
         .all()
     )
-    return templates.TemplateResponse(request, "partials/extensions.html", {"extensions": extensions})
+    lang = resolve_language(request)
+    return templates.TemplateResponse(
+        request,
+        "partials/extensions.html",
+        {"extensions": extensions, "lang": lang, "t": load_translations(lang)},
+    )
 
 
 @router.get("/child", response_class=HTMLResponse)
@@ -227,12 +241,15 @@ def child_transparency_page(
         .scalars()
         .all()
     )
+    lang = resolve_language(request)
     return templates.TemplateResponse(
         request,
         "child_transparency.html",
         {
             "user": user,
             "csrf_token": ws.csrf_token,
+            "lang": lang,
+            "t": load_translations(lang),
             "child_name": decrypt_field(child.name_encrypted),
             "today": today,
             "audit_logs": audit_logs,
