@@ -1,0 +1,35 @@
+{% if extensions %}
+<div class="space-y-3">
+  {% for req in extensions %}
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50">
+    <div class="min-w-0">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-semibold text-sm text-slate-900">+{{ req.requested_minutes }} minutes</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+          {% if req.status == 'pending' %}bg-amber-100 text-amber-800
+          {% elif req.status == 'approved' %}bg-emerald-100 text-emerald-800
+          {% else %}bg-rose-100 text-rose-800{% endif %}">
+          {{ req.status }}
+        </span>
+      </div>
+      <p class="text-xs text-slate-600 mt-1">{{ req.reason or 'Requesting extra time' }}</p>
+      <p class="text-[11px] text-slate-400 mt-0.5">Device: {{ req.device_id[:8] }}... &bull; {{ req.created_at }}</p>
+    </div>
+    {% if req.status == 'pending' %}
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="decideExtension({{ req.id }}, 'approved')"
+              class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
+        Approve
+      </button>
+      <button onclick="decideExtension({{ req.id }}, 'denied')"
+              class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold">
+        Deny
+      </button>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-slate-500 py-4 text-center">No time-extension requests yet.</p>
+{% endif %}
