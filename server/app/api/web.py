@@ -15,7 +15,7 @@ from server.app.crypto import decrypt_field, hash_token
 from server.app.database import get_db
 from server.app.i18n import load_translations, resolve_language
 from server.app.models import AuditLog, Child, Device, Policy, TimeExtensionRequest, User, WebSession, utcnow
-from server.app.security import SESSION_COOKIE_NAME, _as_utc
+from server.app.security import SESSION_COOKIE_NAME, _as_utc, is_child_role
 from server.app.services.policy_service import build_policy_payload, create_default_policy
 
 DASHBOARD_DIR = Path(__file__).resolve().parents[3] / "dashboard"
@@ -52,7 +52,7 @@ def root_redirect(
     if sess is None:
         return RedirectResponse(url="/login", status_code=302)
     user, _ws = sess
-    target = "/child" if user.role == "child-view" else "/dashboard"
+    target = "/child" if is_child_role(user.role) else "/dashboard"
     return RedirectResponse(url=target, status_code=302)
 
 
@@ -65,7 +65,7 @@ def login_page(
     sess = _resolve_optional_session(ogk_session, db)
     if sess is not None:
         user, _ws = sess
-        return RedirectResponse(url="/child" if user.role == "child-view" else "/dashboard", status_code=302)
+        return RedirectResponse(url="/child" if is_child_role(user.role) else "/dashboard", status_code=302)
     lang = resolve_language(request)
     return templates.TemplateResponse(
         request,
@@ -85,8 +85,10 @@ def parent_dashboard_page(
     if sess is None:
         return RedirectResponse(url="/login", status_code=302)
     user, ws = sess
-    if user.role == "child-view":
+    if is_child_role(user.role):
         return RedirectResponse(url="/child", status_code=302)
+    if user.role not in ("parent", "admin"):
+        return HTMLResponse("Forbidden", status_code=403)
 
     stmt = select(Child).order_by(Child.id.asc())
     if user.role == "parent":
@@ -178,6 +180,8 @@ def extensions_partial(
     if sess is None:
         return HTMLResponse("", status_code=401)
     user, _ws = sess
+    if user.role not in ("parent", "admin"):
+        return HTMLResponse("Forbidden", status_code=403)
 
     stmt = select(Child).where(Child.id == child_id)
     if user.role == "parent":
@@ -211,24 +215,45 @@ def child_transparency_page(
     ogk_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
     db: Session = Depends(get_db),
 ):
-    """Child Transparency Screen: 'What I used today' + read-only Audit Log of parent changes."""
+    """Child Transparency Screen: strictly accessible ONLY to `child`/`child-view` and `admin`."""
     sess = _resolve_optional_session(ogk_session, db)
     if sess is None:
         return RedirectResponse(url="/login", status_code=302)
     user, ws = sess
 
-    if user.role == "child-view":
+    # Strict RBAC: Parent role MUST NOT access Child View
+    if not is_child_role(user.role) and user.role != "admin":
+        return HTMLResponse(
+            content=(
+                "<!DOCTYPE html><html><head><meta charset='utf-8'><title>403 Forbidden — KidGate</title></head>"
+                "<body style='font-family:system-ui,sans-serif;padding:2rem;text-align:center'>"
+                "<h1>403 — Access Denied</h1>"
+                "<p>Parent accounts cannot access the Child View.</p>"
+                "<p><a href='/dashboard'>Return to Parent Dashboard</a></p>"
+                "</body></html>"
+            ),
+            status_code=403,
+        )
+
+    all_children_view: list[dict] = []
+    if is_child_role(user.role):
         child = db.execute(select(Child).where(Child.child_user_id == user.id)).scalar_one_or_none()
     else:
-        stmt = select(Child).order_by(Child.id.asc())
-        if user.role == "parent":
-            stmt = stmt.where(Child.parent_id == user.id)
+        # Admin can inspect any child
+        raw_children = db.execute(select(Child).order_by(Child.id.asc())).scalars().all()
+        all_children_view = [
+            {"id": c.id, "name": decrypt_field(c.name_encrypted), "age_group": c.age_group}
+            for c in raw_children
+        ]
         if child_id is not None:
-            stmt = stmt.where(Child.id == child_id)
-        child = db.execute(stmt).scalars().first()
+            child = next((c for c in raw_children if c.id == child_id), raw_children[0] if raw_children else None)
+        else:
+            child = raw_children[0] if raw_children else None
 
     if child is None:
-        return RedirectResponse(url="/dashboard", status_code=302)
+        if user.role == "admin":
+            return RedirectResponse(url="/dashboard", status_code=302)
+        return HTMLResponse("No child profile linked to this account.", status_code=404)
 
     today = get_today_child_transparency(child.id, user=user, db=db)
     audit_logs = (
@@ -250,7 +275,9 @@ def child_transparency_page(
             "csrf_token": ws.csrf_token,
             "lang": lang,
             "t": load_translations(lang),
+            "child_id": child.id,
             "child_name": decrypt_field(child.name_encrypted),
+            "all_children": all_children_view,
             "today": today,
             "audit_logs": audit_logs,
         },

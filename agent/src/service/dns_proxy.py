@@ -96,13 +96,22 @@ class OGKDNSResolver(BaseResolver):
                 pass
 
     def _forward_upstream(self, request: DNSRecord) -> DNSRecord:
-        """Forward allowed DNS query to upstream resolver via UDP."""
+        """Forward allowed DNS query to upstream resolver via UDP (with 8.8.8.8 fallback)."""
         raw = request.pack()
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.settimeout(3.0)
-            sock.sendto(raw, (self.upstream_host, self.upstream_port))
-            data, _ = sock.recvfrom(4096)
-        return DNSRecord.parse(data)
+        upstreams = [(self.upstream_host, self.upstream_port)]
+        if self.upstream_host != "8.8.8.8":
+            upstreams.append(("8.8.8.8", 53))
+        last_exc: Exception | None = None
+        for host, port in upstreams:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    sock.settimeout(2.5)
+                    sock.sendto(raw, (host, port))
+                    data, _ = sock.recvfrom(4096)
+                return DNSRecord.parse(data)
+            except Exception as exc:
+                last_exc = exc
+        raise last_exc or RuntimeError("Upstream DNS forward failed")
 
     def resolve(self, request: DNSRecord, handler=None) -> DNSRecord:
         qname = str(request.q.qname).strip().lower().rstrip(".")
@@ -113,6 +122,12 @@ class OGKDNSResolver(BaseResolver):
             safesearch = self._safesearch_enabled
             allowed = self._allowed_domains
             blocked = self._blocked_domains
+
+        # 0. Disable automatic browser DoH (DNS-over-HTTPS) via official canary domains
+        if qname in ("use-application-dns.net", "mask.icloud.com", "mask-h2.icloud.com"):
+            reply = request.reply()
+            reply.header.rcode = RCODE.NXDOMAIN
+            return reply
 
         # 1. Explicit allowlist overrides blocklists
         is_explicitly_allowed = domain_matches_set(qname, allowed) is not None
@@ -153,7 +168,7 @@ class OGKDNSResolver(BaseResolver):
 
 
 class LocalDNSProxyServer:
-    """Wrapper managing the background UDP DNSServer thread on `127.0.0.1:53`."""
+    """Wrapper managing background UDP + TCP DNSServer threads on `127.0.0.1:53`."""
 
     def __init__(
         self,
@@ -171,22 +186,37 @@ class LocalDNSProxyServer:
             upstream_port=upstream_port,
             on_event=on_event,
         )
-        self._server: DNSServer | None = None
+        self._udp_server: DNSServer | None = None
+        self._tcp_server: DNSServer | None = None
 
     def update_policy(self, policy_payload: dict[str, Any]) -> None:
         self.resolver.update_policy(policy_payload)
 
     def start(self) -> None:
-        self._server = DNSServer(
+        self._udp_server = DNSServer(
             self.resolver,
             port=self.bind_port,
             address=self.bind_host,
             tcp=False,
         )
-        self._server.start_thread()
-        logger.info("Local DNS Proxy started on %s:%d", self.bind_host, self.bind_port)
+        self._udp_server.start_thread()
+        try:
+            self._tcp_server = DNSServer(
+                self.resolver,
+                port=self.bind_port,
+                address=self.bind_host,
+                tcp=True,
+            )
+            self._tcp_server.start_thread()
+        except OSError as exc:
+            logger.warning("Could not bind TCP DNS on %s:%d (UDP active): %s", self.bind_host, self.bind_port, exc)
+            self._tcp_server = None
+        logger.info("Local DNS Proxy started (UDP+TCP) on %s:%d", self.bind_host, self.bind_port)
 
     def stop(self) -> None:
-        if self._server is not None:
-            self._server.stop()
-            self._server = None
+        if self._udp_server is not None:
+            self._udp_server.stop()
+            self._udp_server = None
+        if self._tcp_server is not None:
+            self._tcp_server.stop()
+            self._tcp_server = None

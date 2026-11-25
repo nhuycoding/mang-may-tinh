@@ -69,6 +69,26 @@ async def issue_command(
         cmd.status = "sent"
         cmd.delivered_at = utcnow()
 
+    if body.command_type == "add_15_mins":
+        mins = int((body.payload or {}).get("minutes", 15))
+        policy = db.execute(select(Policy).where(Policy.child_id == device.child_id)).scalar_one_or_none()
+        db.add(
+            Event(
+                idempotency_key=f"cmd-override-{cmd.id}-{uuid.uuid4().hex[:8]}",
+                ts=utcnow(),
+                device_id=device.id,
+                child_id=device.child_id,
+                type="override_granted",
+                subject=f"add_{mins}_mins",
+                duration_sec=mins * 60,
+                policy_id=policy.id if policy else None,
+            )
+        )
+    elif body.command_type == "lock_now":
+        device.status = "locked"
+    elif body.command_type == "unlock":
+        device.status = "online"
+
     record_audit_log(
         db,
         parent_id=device.parent_id,
@@ -90,7 +110,7 @@ def list_commands(
     device_id: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse:
     """Paginated listing of commands for devices owned by the authenticated family."""
@@ -153,7 +173,7 @@ def acknowledge_command(
 @router.get("/extension-requests", response_model=list[ExtensionRequestOut])
 def list_extension_requests(
     status_filter: str | None = Query(default=None, alias="status"),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> list[ExtensionRequestOut]:
     """List child time-extension requests owned by the authenticated family."""

@@ -86,10 +86,17 @@ Open **`https://127.0.0.1:8443/login`** in a desktop or mobile browser (accept t
    python -m agent.src.tray.tray_app
    ```
 
-> **Console Debug Mode (without installing Windows Service):**
+> **Console Debug Mode & Dry-Run Testing (single-machine development without locking Windows):**
 > ```powershell
-> python -m agent.src.service.windows_service --console --no-dns --no-watchdog
+> # Full enforcement + Tray UI in Administrator console:
+> python -m agent.main --console
+>
+> # Safe single-machine testing (shows a dismissible full-screen overlay instead of calling LockWorkStation):
+> python -m agent.main --console --dry-run
+> # Or via environment variable:
+> $env:KIDGATE_DRY_RUN="true"; python -m agent.main --console
 > ```
+> Omit `--dry-run` (default) for real Windows `LockWorkStation()` enforcement during demos or VM/Sandbox testing.
 
 ### Step 7 — Uninstall Cleanly (Optional)
 ```powershell

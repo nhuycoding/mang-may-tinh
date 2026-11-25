@@ -27,6 +27,7 @@ from server.app.services.policy_service import (
     sign_and_persist_policy,
     sign_policy_for_device,
 )
+from server.app.services.ws_manager import ws_manager
 
 router = APIRouter(prefix="/policy", tags=["policy"])
 
@@ -62,7 +63,7 @@ def list_categorized_domains(
     search: str | None = Query(default=None, max_length=100),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse:
     """Paginated listing of the 6-category safe domain dataset."""
@@ -98,10 +99,10 @@ def list_categorized_domains(
 @router.get("/{child_id}", response_model=SignedPolicyResponse)
 def get_child_policy(
     child_id: int,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> SignedPolicyResponse:
-    """Parent / Child-view / Admin endpoint: fetch signed policy for an owned child."""
+    """Parent / Admin endpoint: fetch signed policy for an owned child."""
     child = get_owned_child_or_404(db, user, child_id)
     policy = db.execute(select(Policy).where(Policy.child_id == child.id)).scalar_one_or_none()
     if policy is None:
@@ -122,14 +123,14 @@ def get_child_policy(
 
 
 @router.put("/{child_id}", response_model=SignedPolicyResponse)
-def update_child_policy(
+async def update_child_policy(
     child_id: int,
     body: PolicyUpdateRequest,
     request: Request,
     user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> SignedPolicyResponse:
-    """Update a child's policy, bump policy_version, re-sign HMAC-SHA256, and write AuditLog."""
+    """Update a child's policy, bump policy_version, re-sign HMAC-SHA256, write AuditLog, and push via WebSocket."""
     child = get_owned_child_or_404(db, user, child_id)
     policy = db.execute(select(Policy).where(Policy.child_id == child.id)).scalar_one_or_none()
     if policy is None:
@@ -217,6 +218,26 @@ def update_child_policy(
     )
     db.commit()
     db.refresh(policy)
+
+    # Immediately push `policy_updated` over WebSocket to all connected devices of this child (< 5s latency)
+    devices = (
+        db.execute(
+            select(Device).where(Device.child_id == child.id, Device.is_revoked.is_(False))
+        )
+        .scalars()
+        .all()
+    )
+    for dev in devices:
+        await ws_manager.push_command(
+            dev.id,
+            {
+                "type": "policy_updated",
+                "policy_id": policy.id,
+                "child_id": child.id,
+                "policy_version": policy.policy_version,
+                "updated_at": policy.updated_at.isoformat(),
+            },
+        )
 
     payload = build_policy_payload(policy, db=db)
     return SignedPolicyResponse(

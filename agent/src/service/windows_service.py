@@ -67,10 +67,16 @@ else:
 
 def main() -> None:
     if "--console" in sys.argv:
-        cfg = AgentConfig.from_env()
+        dry_run_flag = "--dry-run" in sys.argv
+        cfg = AgentConfig.from_env(dry_run=True if dry_run_flag else None)
         enable_watchdog = "--no-watchdog" not in sys.argv
         enable_dns = "--no-dns" not in sys.argv
-        core = AgentCore(cfg, enable_dns=enable_dns, enable_tray_watchdog=enable_watchdog)
+        core = AgentCore(
+            cfg,
+            enable_dns=enable_dns,
+            enable_tray_watchdog=enable_watchdog,
+            dry_run=cfg.dry_run,
+        )
         try:
             core.start()
         except KeyboardInterrupt:

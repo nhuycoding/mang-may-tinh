@@ -177,7 +177,7 @@ def refresh_device_token(
 
 @router.get("/devices", response_model=list[DeviceOut])
 def list_devices(
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> list[DeviceOut]:
     """List devices owned by the authenticated family (Anti-IDOR filtered)."""

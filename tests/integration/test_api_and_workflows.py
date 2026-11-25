@@ -194,9 +194,38 @@ def test_heartbeat_clock_tamper_detection_and_realtime_websocket_commands(client
         ws.send_json({"type": "ack", "command_id": msg["command_id"], "status": "acknowledged"})
 
 
-def test_rbac_anti_idor_and_child_transparency_dashboard(client: TestClient):
-    _login(client, "parent@ogk.local", "ParentPass123!")
+def test_policy_update_pushes_realtime_websocket_event(client: TestClient):
+    headers = _login(client, "parent@ogk.local", "ParentPass123!")
     cid = client.get("/auth/children").json()[0]["id"]
+    enrolled = _enroll_test_device(client, headers, cid, name="WS-Policy-PC")
+    dev_id = enrolled["device_id"]
+
+    with client.websocket_connect(f"/commands/ws/{dev_id}?token={enrolled['access_token']}") as ws:
+        upd = client.put(
+            f"/policy/{cid}",
+            json={"weekday_quota_sec": 4500, "blocked_domains": ["realtime-block.test"]},
+            headers=headers,
+        )
+        assert upd.status_code == 200
+        new_ver = upd.json()["policy_version"]
+
+        msg = ws.receive_json()
+        assert msg["type"] == "policy_updated"
+        assert msg["policy_version"] == new_ver
+        assert msg["child_id"] == cid
+
+
+def test_rbac_anti_idor_and_child_transparency_dashboard(client: TestClient):
+    headers = _login(client, "parent@ogk.local", "ParentPass123!")
+    cid = client.get("/auth/children").json()[0]["id"]
+    _enroll_test_device(client, headers, cid, name="RBAC-Child-PC")
+
+    # Strict UI & API isolation for Parent: CANNOT access /child or /reports/today/{cid}, and no /child link in navbar
+    parent_dash = client.get("/dashboard")
+    assert parent_dash.status_code == 200
+    assert 'href="/child"' not in parent_dash.text
+    assert client.get("/child").status_code == 403
+    assert client.get(f"/reports/today/{cid}").status_code == 403
 
     # Second parent cannot access parent1's child policy, reports, or events (Anti-IDOR -> 404)
     with TestClient(app) as c_parent2:
@@ -205,14 +234,48 @@ def test_rbac_anti_idor_and_child_transparency_dashboard(client: TestClient):
         assert c_parent2.get(f"/reports/summary/{cid}").status_code == 404
         assert c_parent2.get(f"/events?child_id={cid}").status_code == 404
 
-    # Child-view cannot modify policy (RBAC -> 403), CAN view /child transparency screen & /audit
+    # Child-view cannot access parent/admin routes (API -> 403, /dashboard -> redirect to /child)
     with TestClient(app) as c_child:
         ch_headers = _login(c_child, "child@ogk.local", "ChildPass123!")
         assert c_child.put(f"/policy/{cid}", json={"weekday_quota_sec": 9999}, headers=ch_headers).status_code == 403
+        assert c_child.get(f"/policy/{cid}").status_code == 403
+        assert c_child.get(f"/reports/summary/{cid}").status_code == 403
+        assert c_child.get("/events").status_code == 403
+        assert c_child.get("/commands").status_code == 403
+        assert c_child.get("/enroll/devices").status_code == 403
+        assert c_child.get(f"/dashboard/partials/extensions?child_id={cid}").status_code == 403
+
+        dash_redir = c_child.get("/dashboard", follow_redirects=False)
+        assert dash_redir.status_code == 302
+        assert dash_redir.headers["location"] == "/child"
+
+        # Child-view CAN access /child, /reports/today/{cid}, /audit, and submit extension request
         assert c_child.get("/audit").status_code == 200
+        today_api = c_child.get(f"/reports/today/{cid}")
+        assert today_api.status_code == 200
+        assert "remaining_seconds" in today_api.json()
+
+        ext_req = c_child.post(
+            f"/events/child/extension-request?child_id={cid}",
+            json={"requested_minutes": 15, "reason": "Finishing homework"},
+            headers=ch_headers,
+        )
+        assert ext_req.status_code == 201
+
         page = c_child.get("/child")
         assert page.status_code == 200
         assert "What I used today" in page.text
+        assert 'href="/dashboard"' not in page.text
+
+    # Admin CAN access BOTH Parent Dashboard and Child View
+    with TestClient(app) as c_admin:
+        _login(c_admin, "admin@ogk.local", "AdminPass123!")
+        adm_dash = c_admin.get("/dashboard")
+        assert adm_dash.status_code == 200
+        assert 'href="/child"' in adm_dash.text
+        adm_child = c_admin.get(f"/child?child_id={cid}")
+        assert adm_child.status_code == 200
+        assert 'href="/dashboard"' in adm_child.text
 
 
 def test_data_retention_90_days_and_delete_all_child_data_wipe(client: TestClient):

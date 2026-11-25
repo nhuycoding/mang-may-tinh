@@ -57,14 +57,38 @@ function showToast(message, kind = "info") {
   }, 3800);
 }
 
-async function apiFetch(url, options = {}) {
+async function refreshCsrfToken() {
+  try {
+    const resp = await fetch("/auth/me", { credentials: "same-origin" });
+    if (resp.status === 401) {
+      window.location.href = "/login";
+      return "";
+    }
+    if (!resp.ok) return "";
+    const data = await resp.json();
+    if (data && data.csrf_token) {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta) meta.setAttribute("content", data.csrf_token);
+      return data.csrf_token;
+    }
+  } catch (_) {
+    // Ignore
+  }
+  return "";
+}
+
+async function apiFetch(url, options = {}, _retried = false) {
   const headers = Object.assign(
     { "Content-Type": "application/json" },
     options.headers || {}
   );
   const method = (options.method || "GET").toUpperCase();
   if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-    headers["X-CSRF-Token"] = getCsrfToken();
+    let token = getCsrfToken();
+    if (!token) {
+      token = await refreshCsrfToken();
+    }
+    headers["X-CSRF-Token"] = token;
   }
   const resp = await fetch(url, Object.assign({}, options, { headers, credentials: "same-origin" }));
   let data = null;
@@ -75,6 +99,17 @@ async function apiFetch(url, options = {}) {
   }
   if (!resp.ok) {
     const detail = (data && data.detail) ? data.detail : `HTTP ${resp.status}`;
+    if (
+      !_retried &&
+      resp.status === 403 &&
+      typeof detail === "string" &&
+      detail.toLowerCase().includes("csrf")
+    ) {
+      const freshToken = await refreshCsrfToken();
+      if (freshToken) {
+        return apiFetch(url, options, true);
+      }
+    }
     throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
   }
   return data;

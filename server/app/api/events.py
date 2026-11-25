@@ -25,8 +25,9 @@ from server.app.schemas import (
 from server.app.security import (
     _as_utc,
     get_current_device,
-    get_current_user,
     get_owned_child_or_404,
+    is_child_role,
+    require_roles,
     sanitize_event_subject,
 )
 
@@ -86,7 +87,7 @@ def list_events(
     event_type: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles(["parent", "admin"])),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse:
     """Paginated activity event listing with RBAC & Anti-IDOR ownership filtering."""
@@ -137,8 +138,13 @@ def device_heartbeat(
     client_ts = _as_utc(body.client_time) or now
     skew_sec = int((client_ts - now).total_seconds())
 
+    last_hb = _as_utc(device.last_heartbeat_at)
+    same_utc_day = last_hb is not None and last_hb.date() == now.date()
     device.last_heartbeat_at = now
-    device.used_quota_sec_today = max(device.used_quota_sec_today, body.used_quota_sec_today)
+    if same_utc_day:
+        device.used_quota_sec_today = max(device.used_quota_sec_today, body.used_quota_sec_today)
+    else:
+        device.used_quota_sec_today = body.used_quota_sec_today
     device.current_policy_version = body.current_policy_version
     device.last_clock_skew_sec = skew_sec
 
@@ -220,6 +226,67 @@ def submit_extension_request(
             ts=now,
             device_id=device.id,
             child_id=device.child_id,
+            type="unlock_request",
+            subject=f"request_{body.requested_minutes}_mins",
+            duration_sec=body.requested_minutes * 60,
+            policy_id=policy.id if policy else None,
+        )
+    )
+    db.commit()
+    db.refresh(req)
+    return ExtensionRequestOut.model_validate(req)
+
+
+@router.post("/child/extension-request", response_model=ExtensionRequestOut, status_code=status.HTTP_201_CREATED)
+def submit_child_web_extension_request(
+    body: ExtensionRequestCreate,
+    child_id: int | None = Query(default=None),
+    user: User = Depends(require_roles(["child-view", "child", "admin"])),
+    db: Session = Depends(get_db),
+) -> ExtensionRequestOut:
+    """Child Web UI submits a 'Request more time' request to the Parent Dashboard queue."""
+    if is_child_role(user.role):
+        child = db.execute(select(Child).where(Child.child_user_id == user.id)).scalar_one_or_none()
+    elif child_id is not None:
+        child = db.get(Child, child_id)
+    else:
+        child = db.execute(select(Child).order_by(Child.id.asc())).scalars().first()
+
+    if child is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Child profile not found.")
+
+    device = (
+        db.execute(
+            select(Device)
+            .where(Device.child_id == child.id, Device.is_revoked.is_(False))
+            .order_by(Device.last_heartbeat_at.desc())
+        )
+        .scalars()
+        .first()
+    )
+    if device is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active device is enrolled for this child profile yet.",
+        )
+
+    now = utcnow()
+    req = TimeExtensionRequest(
+        child_id=child.id,
+        device_id=device.id,
+        requested_minutes=body.requested_minutes,
+        reason=(body.reason or "Requesting extra study/play time").strip(),
+        status="pending",
+    )
+    db.add(req)
+
+    policy = db.execute(select(Policy).where(Policy.child_id == child.id)).scalar_one_or_none()
+    db.add(
+        Event(
+            idempotency_key=f"web-unlockreq-{child.id}-{uuid.uuid4().hex[:12]}",
+            ts=now,
+            device_id=device.id,
+            child_id=child.id,
             type="unlock_request",
             subject=f"request_{body.requested_minutes}_mins",
             duration_sec=body.requested_minutes * 60,

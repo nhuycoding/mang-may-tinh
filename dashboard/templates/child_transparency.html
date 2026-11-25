@@ -7,28 +7,49 @@
   <div class="bg-gradient-to-r from-sky-600 to-indigo-600 dark:from-indigo-800 dark:to-slate-900 rounded-2xl p-6 text-white shadow-sm border border-transparent dark:border-slate-700">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <span class="inline-block text-xs font-semibold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full mb-2">
-          {{ t.child_badge }}
-        </span>
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <span class="inline-block text-xs font-semibold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full">
+            {{ t.child_badge }}
+          </span>
+          <span id="live-status-pill" class="inline-block text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full {% if today.is_locked %}bg-rose-500/80{% elif today.online %}bg-emerald-500/80{% else %}bg-white/15{% endif %}">
+            {% if today.is_locked %}{{ t.child_status_locked }}{% elif today.online %}{{ t.child_status_live }}{% else %}{{ t.child_status_offline }}{% endif %}
+          </span>
+          {% if user.role == 'admin' and all_children %}
+          <select onchange="window.location.href='/child?child_id=' + this.value"
+                  class="rounded-lg bg-white/20 text-white text-xs font-semibold px-2.5 py-1 border border-white/30">
+            {% for c in all_children %}
+            <option value="{{ c.id }}" class="text-slate-900" {% if c.id == child_id %}selected{% endif %}>
+              {{ c.name }} ({{ c.age_group }})
+            </option>
+            {% endfor %}
+          </select>
+          {% endif %}
+        </div>
         <h1 class="text-2xl sm:text-3xl font-bold">{{ t.child_heading.replace('{name}', child_name) }}</h1>
         <p class="text-sm text-sky-100 mt-1">
           {{ t.child_subtitle }}
         </p>
+        <div class="mt-4">
+          <button type="button" onclick="requestMoreTime()"
+                  class="px-4 py-2 rounded-xl bg-white text-indigo-700 hover:bg-sky-50 font-semibold text-sm shadow-sm transition">
+            + {{ t.child_request_more_time }}
+          </button>
+        </div>
       </div>
-      <div class="bg-white/15 backdrop-blur rounded-2xl p-4 text-center min-w-[160px]">
+      <div class="bg-white/15 backdrop-blur rounded-2xl p-4 text-center min-w-[190px]">
         <div class="text-xs uppercase tracking-wider text-sky-100">{{ t.child_time_left }}</div>
-        <div class="text-3xl font-extrabold mt-1">{{ today.remaining_minutes }} {{ t.unit_min }}</div>
-        <div class="text-xs text-sky-100 mt-0.5">
+        <div id="live-countdown" class="text-3xl font-extrabold font-mono mt-1 tabular-nums">--:--:--</div>
+        <div id="live-used-of" class="text-xs text-sky-100 mt-0.5">
           {{ t.child_used_of.replace('{used}', today.used_minutes | string).replace('{quota}', today.quota_minutes | string) }}
         </div>
       </div>
     </div>
 
-    {% set pct = ((today.used_minutes / today.quota_minutes) * 100) if today.quota_minutes > 0 else 0 %}
+    {% set pct = ((today.used_seconds / today.quota_seconds) * 100) if today.quota_seconds > 0 else 0 %}
     {% set pct_clamped = 100 if pct > 100 else pct %}
     <div class="mt-4">
       <div class="w-full h-3 bg-white/25 rounded-full overflow-hidden">
-        <div class="h-full bg-white rounded-full transition-all" style="width: {{ pct_clamped | round(1) }}%"></div>
+        <div id="live-progress-bar" class="h-full bg-white rounded-full transition-all" style="width: {{ pct_clamped | round(1) }}%"></div>
       </div>
     </div>
   </div>
@@ -147,4 +168,87 @@
     </div>
   </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CHILD_ID = {{ child_id }};
+let liveState = {
+  usedSec: {{ today.used_seconds | int }},
+  quotaSec: {{ today.quota_seconds | int }},
+  remainingSec: {{ today.remaining_seconds | int }},
+  isLocked: {{ 'true' if today.is_locked else 'false' }},
+  online: {{ 'true' if today.online else 'false' }},
+};
+
+function formatHMS(totalSec) {
+  const s = Math.max(0, Math.floor(totalSec));
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function renderLiveTimer() {
+  const el = document.getElementById("live-countdown");
+  const usedEl = document.getElementById("live-used-of");
+  const bar = document.getElementById("live-progress-bar");
+  const pill = document.getElementById("live-status-pill");
+  if (el) el.textContent = formatHMS(liveState.remainingSec);
+  if (usedEl) {
+    const usedMin = (liveState.usedSec / 60).toFixed(1);
+    const quotaMin = (liveState.quotaSec / 60).toFixed(0);
+    usedEl.textContent = tr("child_used_of", { used: usedMin, quota: quotaMin });
+  }
+  if (bar) {
+    const pct = liveState.quotaSec > 0 ? Math.min(100, (liveState.usedSec / liveState.quotaSec) * 100) : 0;
+    bar.style.width = `${pct.toFixed(1)}%`;
+  }
+  if (pill) {
+    pill.className = "inline-block text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full " +
+      (liveState.isLocked ? "bg-rose-500/80" : (liveState.online ? "bg-emerald-500/80" : "bg-white/15"));
+    pill.textContent = liveState.isLocked
+      ? tr("child_status_locked")
+      : (liveState.online ? tr("child_status_live") : tr("child_status_offline"));
+  }
+}
+
+async function syncFromServer() {
+  try {
+    const data = await apiFetch(`/reports/today/${CHILD_ID}`);
+    liveState.usedSec = Number(data.used_seconds || 0);
+    liveState.quotaSec = Number(data.quota_seconds || 0);
+    liveState.remainingSec = Number(data.remaining_seconds || 0);
+    liveState.isLocked = Boolean(data.is_locked);
+    liveState.online = Boolean(data.online);
+    renderLiveTimer();
+  } catch (_) {
+    // Ignore transient network errors
+  }
+}
+
+renderLiveTimer();
+setInterval(() => {
+  if (liveState.online && !liveState.isLocked && liveState.remainingSec > 0) {
+    liveState.usedSec += 1;
+    liveState.remainingSec = Math.max(0, liveState.quotaSec - liveState.usedSec);
+    renderLiveTimer();
+  }
+}, 1000);
+setInterval(syncFromServer, 15000);
+
+async function requestMoreTime() {
+  const reason = prompt(tr("child_request_prompt"), "");
+  if (reason === null) return;
+  try {
+    await apiFetch(`/events/child/extension-request?child_id=${CHILD_ID}`, {
+      method: "POST",
+      body: JSON.stringify({ requested_minutes: 15, reason: reason.trim() }),
+    });
+    showToast(tr("child_request_sent"), "success");
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+</script>
 {% endblock %}

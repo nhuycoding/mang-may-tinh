@@ -209,6 +209,30 @@ def test_dns_proxy_enforces_safesearch_google_bing_ddg():
         assert str(reply.rr[0].rdata) == expected_target
 
 
+def test_app_controller_tracks_foreground_app_sessions():
+    ctrl = AppController()
+    mono = [100.0]
+    fg = ["chrome.exe"]
+
+    e1 = ctrl.track_foreground_app(foreground_fn=lambda: fg[0], monotonic_fn=lambda: mono[0])
+    assert len(e1) == 1
+    assert e1[0].event_type == "app_start" and e1[0].app_name == "chrome.exe"
+
+    # Switch to code.exe after 45 seconds -> emits app_stop(45s) + app_start(code.exe)
+    mono[0] += 45.0
+    fg[0] = "code.exe"
+    e2 = ctrl.track_foreground_app(foreground_fn=lambda: fg[0], monotonic_fn=lambda: mono[0])
+    assert len(e2) == 2
+    assert e2[0].event_type == "app_stop" and e2[0].app_name == "chrome.exe" and e2[0].duration_sec == 45
+    assert e2[1].event_type == "app_start" and e2[1].app_name == "code.exe"
+
+    # Flush active session after 20 seconds
+    mono[0] += 20.0
+    e3 = ctrl.flush_active_session(monotonic_fn=lambda: mono[0])
+    assert len(e3) == 1
+    assert e3[0].event_type == "app_stop" and e3[0].app_name == "code.exe" and e3[0].duration_sec == 20
+
+
 def test_dns_proxy_allowlist_overrides_blocklist():
     resolver = OGKDNSResolver()
     resolver.update_policy(
@@ -222,3 +246,38 @@ def test_dns_proxy_allowlist_overrides_blocklist():
     resolver._forward_upstream = lambda req: req.reply()  # type: ignore[method-assign]
     reply = resolver.resolve(DNSRecord.question("sub.example.com", "A"))
     assert reply.header.rcode == RCODE.NOERROR
+
+
+def test_agent_dry_run_mode_uses_simulated_overlay_instead_of_lock_workstation(tmp_path: Path, monkeypatch):
+    from agent.src.config import AgentConfig
+    import agent.src.service.agent_core as agent_core_mod
+
+    monkeypatch.setenv("OGK_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("KIDGATE_DRY_RUN", "true")
+    cfg = AgentConfig.from_env()
+    assert cfg.dry_run is True
+
+    real_lock_calls = []
+    overlay_calls = []
+    monkeypatch.setattr(agent_core_mod, "lock_windows_workstation", lambda: real_lock_calls.append(1))
+    monkeypatch.setattr(
+        agent_core_mod,
+        "show_dry_run_lock_overlay",
+        lambda reason, on_dismiss=None: (overlay_calls.append(reason), on_dismiss() if on_dismiss else None),
+    )
+
+    core_dry = agent_core_mod.AgentCore(cfg, enable_dns=False, enable_tray_watchdog=False)
+    core_dry._trigger_workstation_lock("Locked remotely by parent.", force_overlay=True)
+    # Wait briefly for background overlay thread
+    import time as _time
+    _time.sleep(0.1)
+    assert len(real_lock_calls) == 0
+    assert overlay_calls == ["Locked remotely by parent."]
+
+    # Default production behavior (dry_run=False) MUST call real lock_windows_workstation()
+    monkeypatch.delenv("KIDGATE_DRY_RUN", raising=False)
+    cfg_prod = AgentConfig.from_env()
+    assert cfg_prod.dry_run is False
+    core_prod = agent_core_mod.AgentCore(cfg_prod, enable_dns=False, enable_tray_watchdog=False)
+    core_prod._trigger_workstation_lock("Locked remotely by parent.")
+    assert len(real_lock_calls) == 1

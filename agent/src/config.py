@@ -25,10 +25,12 @@ class AgentConfig:
     tray_watchdog_timeout_sec: int = 90
     idle_threshold_sec: int = 300
     clock_skew_threshold_sec: int = 120
+    dry_run: bool = False
 
     @classmethod
-    def from_env(cls) -> "AgentConfig":
+    def from_env(cls, *, dry_run: bool | None = None) -> "AgentConfig":
         default_dir = Path(os.environ.get("OGK_AGENT_DATA_DIR", r"C:\ProgramData\OGK-Agent"))
+        env_dry_run = os.environ.get("KIDGATE_DRY_RUN", "").strip().lower() in ("1", "true", "yes", "on")
         return cls(
             data_dir=default_dir,
             db_path=default_dir / "ogk_agent.db",
@@ -39,4 +41,5 @@ class AgentConfig:
             upstream_dns_host=os.environ.get("OGK_UPSTREAM_DNS", "1.1.1.1"),
             heartbeat_interval_sec=int(os.environ.get("OGK_HEARTBEAT_SEC", "60")),
             tray_watchdog_timeout_sec=int(os.environ.get("OGK_TRAY_WATCHDOG_SEC", "90")),
+            dry_run=env_dry_run if dry_run is None else bool(dry_run),
         )

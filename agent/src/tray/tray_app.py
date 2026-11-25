@@ -198,15 +198,27 @@ class OGKTrayApp:
 
         threading.Thread(target=_run, daemon=True).start()
 
+    def _format_hms(self, total_sec: int) -> str:
+        s = max(0, int(total_sec))
+        hrs, rem = divmod(s, 3600)
+        mins, secs = divmod(rem, 60)
+        return f"{hrs:02d}:{mins:02d}:{secs:02d}"
+
     def _poll_loop(self) -> None:
+        hb_counter = 0
         while not self._stop_event.is_set():
             try:
-                self._ipc_post("/ipc/tray-heartbeat")
+                if hb_counter % 10 == 0:
+                    self._ipc_post("/ipc/tray-heartbeat")
+                hb_counter += 1
+
                 st = self._ipc_get("/ipc/status")
-                self._last_rem_min = round(st.get("remaining_sec", 0) / 60, 1)
+                rem_sec = int(st.get("remaining_seconds", st.get("remaining_sec", 0)))
+                self._last_rem_min = round(rem_sec / 60, 1)
                 self._last_online = bool(st.get("online"))
                 state = self._t("online") if self._last_online else self._t("offline")
-                self._remaining_text = self._t("status_tooltip", state=state, mins=self._last_rem_min)
+                hms = self._format_hms(rem_sec)
+                self._remaining_text = f"KidGate ({state}) — {hms}"
                 if self._icon is not None:
                     self._icon.title = self._remaining_text
 
@@ -218,7 +230,7 @@ class OGKTrayApp:
                     )
             except Exception as exc:
                 logger.debug("Tray IPC poll failed: %s", exc)
-            self._stop_event.wait(timeout=10.0)
+            self._stop_event.wait(timeout=1.0)
 
     def run(self) -> None:
         """Start visible System Tray icon. On failure, notify Service to self-terminate."""

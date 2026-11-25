@@ -243,9 +243,16 @@ def get_current_user(
     return ctx[0]
 
 
+def is_child_role(role: str) -> bool:
+    """Return True if role represents a child/child-view account."""
+    return role in ("child", "child-view")
+
+
 def require_roles(allowed_roles: Iterable[str]):
-    """RBAC dependency factory enforcing allowed roles (`parent`, `child-view`, `admin`)."""
+    """RBAC dependency factory enforcing allowed roles (`parent`, `child-view`/`child`, `admin`)."""
     allowed = set(allowed_roles)
+    if "child-view" in allowed or "child" in allowed:
+        allowed.update({"child", "child-view"})
 
     def _checker(user: User = Depends(get_current_user)) -> User:
         if user.role not in allowed:
@@ -263,7 +270,7 @@ def get_owned_child_or_404(db: Session, user: User, child_id: int) -> Child:
     stmt = select(Child).where(Child.id == child_id)
     if user.role == "parent":
         stmt = stmt.where(Child.parent_id == user.id)
-    elif user.role == "child-view":
+    elif is_child_role(user.role):
         stmt = stmt.where(Child.child_user_id == user.id)
     elif user.role == "admin":
         pass
@@ -281,7 +288,7 @@ def get_owned_device_or_404(db: Session, user: User, device_id: str) -> Device:
     stmt = select(Device).where(Device.id == device_id)
     if user.role == "parent":
         stmt = stmt.where(Device.parent_id == user.id)
-    elif user.role == "child-view":
+    elif is_child_role(user.role):
         child = db.execute(select(Child).where(Child.child_user_id == user.id)).scalar_one_or_none()
         if child is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found.")

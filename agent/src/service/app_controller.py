@@ -2,12 +2,41 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import psutil
+
+# System/shell processes excluded from child app-usage reporting
+_IGNORED_USAGE_PROCS = {
+    "system",
+    "system idle process",
+    "idle",
+    "registry",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "services.exe",
+    "lsass.exe",
+    "svchost.exe",
+    "dwm.exe",
+    "fontdrvhost.exe",
+    "conhost.exe",
+    "sihost.exe",
+    "taskhostw.exe",
+    "searchhost.exe",
+    "shellexperiencehost.exe",
+    "startmenuexperiencehost.exe",
+    "textinputhost.exe",
+    "lockapp.exe",
+    "logonui.exe",
+    "explorer.exe",
+}
 
 
 @dataclass(frozen=True)
@@ -18,6 +47,34 @@ class BlockedProcessEvent:
     sha256: str
     reason: str
     matched_by: str  # "sha256" or "name"
+
+
+@dataclass(frozen=True)
+class AppUsageEvent:
+    event_type: str  # "app_start" or "app_stop"
+    app_name: str
+    duration_sec: int
+
+
+def get_foreground_process_name() -> str | None:
+    """Return the executable name (e.g., 'chrome.exe') of the active foreground window on Windows."""
+    if sys.platform != "win32":
+        return None
+    try:
+        user32 = ctypes.windll.user32
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return None
+        pid = ctypes.c_ulong(0)
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value <= 4:
+            return None
+        name = psutil.Process(pid.value).name()
+        if not name or name.lower() in _IGNORED_USAGE_PROCS:
+            return None
+        return name
+    except Exception:
+        return None
 
 
 def compute_file_sha256(file_path: str | Path) -> str:
@@ -39,6 +96,48 @@ class AppController:
     def __init__(self) -> None:
         # Cache: exe_path -> (mtime_ns, file_size, sha256_hex)
         self._hash_cache: dict[str, tuple[int, int, str]] = {}
+        # Active foreground application session tracking
+        self._active_app: str | None = None
+        self._active_started_mono: float = 0.0
+        self._last_flush_mono: float = 0.0
+
+    def track_foreground_app(
+        self,
+        *,
+        is_paused: bool = False,
+        flush_interval_sec: float = 60.0,
+        foreground_fn=get_foreground_process_name,
+        monotonic_fn=time.monotonic,
+    ) -> list[AppUsageEvent]:
+        """Track real foreground application usage, emitting `app_start` and `app_stop` with `duration_sec`."""
+        now = monotonic_fn()
+        events: list[AppUsageEvent] = []
+        current = None if is_paused else foreground_fn()
+
+        if current != self._active_app:
+            if self._active_app is not None:
+                elapsed = max(1, int(now - self._last_flush_mono))
+                events.append(AppUsageEvent("app_stop", self._active_app, elapsed))
+            self._active_app = current
+            if current is not None:
+                self._active_started_mono = now
+                self._last_flush_mono = now
+                events.append(AppUsageEvent("app_start", current, 0))
+        elif current is not None and (now - self._last_flush_mono) >= flush_interval_sec:
+            elapsed = max(1, int(now - self._last_flush_mono))
+            self._last_flush_mono = now
+            events.append(AppUsageEvent("app_stop", current, elapsed))
+
+        return events
+
+    def flush_active_session(self, monotonic_fn=time.monotonic) -> list[AppUsageEvent]:
+        """Flush any in-progress foreground app session on Agent shutdown."""
+        if self._active_app is None:
+            return []
+        elapsed = max(1, int(monotonic_fn() - self._last_flush_mono))
+        app_name = self._active_app
+        self._active_app = None
+        return [AppUsageEvent("app_stop", app_name, elapsed)]
 
     def get_cached_sha256(self, exe_path: str) -> str:
         """Compute and cache SHA-256 for `exe_path`, invalidating if mtime or size changes."""
@@ -106,7 +205,7 @@ class AppController:
             return []
 
         blocked_events: list[BlockedProcessEvent] = []
-        for proc in psutil.process_iter(["pid", "name", "exe"]):
+        for proc in psutil.process_iter(["pid", "name", "exe", "create_time"]):
             try:
                 info = proc.info
                 pid = info.get("pid")
@@ -122,11 +221,9 @@ class AppController:
                 exe_sha = self.get_cached_sha256(exe)
                 if terminate:
                     try:
-                        proc.terminate()
-                        proc.wait(timeout=2.0)
-                    except psutil.TimeoutExpired:
                         proc.kill()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        proc.wait(timeout=2.0)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
                         pass
 
                 blocked_events.append(

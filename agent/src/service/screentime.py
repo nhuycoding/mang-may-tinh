@@ -31,13 +31,32 @@ def get_windows_idle_seconds() -> float:
 
 
 def is_workstation_locked() -> bool:
-    """Best-effort check whether the Windows interactive desktop is currently locked."""
+    """Accurately detect whether the Windows workstation is currently locked.
+
+    Avoids the Session-0 / desktop-click pitfall where `GetForegroundWindow() == 0`
+    falsely reports locked even while the user is active.
+    """
     if sys.platform != "win32":
         return False
     try:
+        # 1. Check OpenInputDesktop (returns NULL when Winlogon / lock screen desktop is active)
         user32 = ctypes.windll.user32
-        hwnd = user32.GetForegroundWindow()
-        return hwnd == 0
+        DESKTOP_SWITCHDESKTOP = 0x0100
+        hdesk = user32.OpenInputDesktop(0, False, DESKTOP_SWITCHDESKTOP)
+        if hdesk:
+            user32.CloseDesktop(hdesk)
+            return False
+        # OpenInputDesktop can fail in Session 0 (LocalSystem service); fall back to LogonUI check
+        try:
+            import psutil
+
+            for proc in psutil.process_iter(["name"]):
+                name = (proc.info.get("name") or "").lower()
+                if name == "logonui.exe":
+                    return True
+            return False
+        except Exception:
+            return False
     except Exception:
         return False
 
@@ -52,6 +71,84 @@ def lock_windows_workstation() -> bool:
         return False
 
 
+def show_dry_run_lock_overlay(
+    reason: str,
+    on_dismiss: Callable[[], None] | None = None,
+) -> None:
+    """Display a full-screen always-on-top tkinter overlay simulating a workstation lock (Dry-Run Mode)."""
+    import tkinter as tk
+
+    root = tk.Tk()
+    root.title("Workstation Locked by KidGate (Dry-Run Mode)")
+    root.configure(bg="#0f172a")
+    root.attributes("-fullscreen", True)
+    root.attributes("-topmost", True)
+
+    container = tk.Frame(root, bg="#0f172a")
+    container.place(relx=0.5, rely=0.5, anchor="center")
+
+    badge = tk.Label(
+        container,
+        text="DRY-RUN MODE — SIMULATED LOCK",
+        font=("Segoe UI", 11, "bold"),
+        fg="#fbbf24",
+        bg="#1e293b",
+        padx=14,
+        pady=6,
+    )
+    badge.pack(pady=(0, 18))
+
+    title = tk.Label(
+        container,
+        text="Workstation Locked by KidGate (Dry-Run Mode)",
+        font=("Segoe UI", 26, "bold"),
+        fg="#f8fafc",
+        bg="#0f172a",
+        wraplength=900,
+        justify="center",
+    )
+    title.pack(pady=(0, 14))
+
+    reason_lbl = tk.Label(
+        container,
+        text=f"Reason: {reason or 'Workstation locked by policy.'}",
+        font=("Segoe UI", 14),
+        fg="#cbd5e1",
+        bg="#0f172a",
+        wraplength=820,
+        justify="center",
+    )
+    reason_lbl.pack(pady=(0, 28))
+
+    def _dismiss() -> None:
+        try:
+            root.destroy()
+        finally:
+            if on_dismiss is not None:
+                on_dismiss()
+
+    root.protocol("WM_DELETE_WINDOW", _dismiss)
+    root.bind("<Escape>", lambda _e: _dismiss())
+
+    btn = tk.Button(
+        container,
+        text="Dismiss (Dev Only)",
+        command=_dismiss,
+        font=("Segoe UI", 13, "bold"),
+        fg="#ffffff",
+        bg="#4f46e5",
+        activebackground="#4338ca",
+        activeforeground="#ffffff",
+        relief="flat",
+        padx=24,
+        pady=10,
+        cursor="hand2",
+    )
+    btn.pack()
+
+    root.mainloop()
+
+
 @dataclass
 class TickResult:
     """Outcome of a single screen-time evaluation tick."""
@@ -59,6 +156,8 @@ class TickResult:
     used_sec: int
     effective_quota_sec: int
     remaining_sec: int
+    is_locked: bool = False
+    is_idle: bool = False
     should_lock: bool = False
     lock_reason: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -102,6 +201,9 @@ class ScreenTimeEngine:
         self._warned_thresholds: set[int] = set()  # {600, 300, 60}
         self._grace_started_mono: float | None = None
         self.force_locked: bool = False
+        self.is_locked: bool = False
+        self.is_idle: bool = False
+        self.last_lock_reason: str = ""
 
     def load_persisted_state(self, used_sec: int, bonus_sec: int, usage_date: str) -> None:
         self.used_sec = float(max(0, used_sec))
@@ -226,7 +328,10 @@ class ScreenTimeEngine:
         # Active usage counting: pause when locked or idle > idle_timeout_sec (5 mins default)
         idle_sec = self._idle_sec()
         locked = self._is_locked()
-        if not locked and idle_sec <= idle_timeout:
+        is_idle = idle_sec > idle_timeout
+        self.is_idle = is_idle
+        self.is_locked = locked or self.force_locked
+        if not locked and not self.force_locked and not is_idle:
             self.used_sec += delta_mono
 
         used_int = int(self.used_sec)
@@ -235,6 +340,8 @@ class ScreenTimeEngine:
             used_sec=used_int,
             effective_quota_sec=effective_quota,
             remaining_sec=remaining,
+            is_locked=self.is_locked,
+            is_idle=is_idle,
             clock_tamper_detected=tamper_detected,
             clock_tamper_reason=tamper_reason,
             offline_policy_expired=expired,
@@ -245,21 +352,30 @@ class ScreenTimeEngine:
             if expiry_mode == "fail_open":
                 return result
             result.should_lock = True
+            result.is_locked = True
             result.lock_reason = (
                 f"Offline policy expired (> {policy_payload.get('offline_expiry_days', 3)} days offline, fail_closed)."
             )
+            self.is_locked = True
+            self.last_lock_reason = result.lock_reason
             return result
 
         # Force-locked by remote `lock_now` command
         if self.force_locked:
             result.should_lock = True
+            result.is_locked = True
             result.lock_reason = "Locked remotely by parent."
+            self.is_locked = True
+            self.last_lock_reason = result.lock_reason
             return result
 
         # 7x48 Schedule check (lock within 5 seconds outside allowed hours)
         if not self.is_schedule_allowed(policy_payload, trusted_dt):
             result.should_lock = True
+            result.is_locked = True
             result.lock_reason = "Outside allowed weekly schedule hours."
+            self.is_locked = True
+            self.last_lock_reason = result.lock_reason
             return result
 
         # Warnings at 10, 5, and 1 minute remaining
@@ -277,8 +393,12 @@ class ScreenTimeEngine:
                 )
             elif (now_mono - self._grace_started_mono) >= grace_period:
                 result.should_lock = True
+                result.is_locked = True
                 result.lock_reason = "Daily screen-time quota reached."
+                self.is_locked = True
+                self.last_lock_reason = result.lock_reason
         else:
             self._grace_started_mono = None
+            self.last_lock_reason = ""
 
         return result
